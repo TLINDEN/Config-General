@@ -1,3 +1,12 @@
+#
+# Config::General::Interpolated - special Class based on Config::General
+#
+# Copyright (c) 2001 by Wei-Hon Chen <plasmaball@pchome.com.tw>.
+# Copyright (c) 2000-2005 by Thomas Linden <tom@daemon.de>.
+# All Rights Reserved. Std. disclaimer applies.
+# Artificial License, same as perl itself. Have fun.
+#
+
 package Config::General::Interpolated;
 $Config::General::Interpolated::VERSION = "2.04";
 

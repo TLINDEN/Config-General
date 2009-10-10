@@ -5,7 +5,7 @@
 #          config values from a given file and
 #          return it as hash structure
 #
-# Copyright (c) 2000-2004 Thomas Linden <tom@daemon.de>.
+# Copyright (c) 2000-2005 Thomas Linden <tom@daemon.de>.
 # All Rights Reserved. Std. disclaimer applies.
 # Artificial License, same as perl itself. Have fun.
 #
@@ -15,10 +15,18 @@ package Config::General;
 use FileHandle;
 use File::Spec::Functions qw(splitpath file_name_is_absolute catfile catpath);
 use strict;
+
+# on debian with perl > 5.8.4 croak() doesn't work anymore without this.
+# There is some require statement which dies 'cause it can't find Carp::Heavy,
+# I really don't understand, what the hell they made, but the debian perl
+# installation is definetly bullshit, damn!
+use Carp::Heavy;
+
+
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = "2.27";
+$Config::General::VERSION = "2.28";
 
 use vars  qw(@ISA @EXPORT);
 @ISA    = qw(Exporter);
@@ -80,6 +88,7 @@ sub new {
 	      upperkey              => "",
 	      lastkey               => "",
 	      prevkey               => " ",
+	      files                 => {},      # which files we have read, if any
 	     };
 
   # create the class instance
@@ -298,6 +307,14 @@ sub getall {
 }
 
 
+sub files {
+  #
+  # return a list of files opened so far
+  #
+  my($this) = @_;
+  return (exists $this->{files} ? keys %{$this->{files}} : () );
+}
+
 
 sub _open {
   #
@@ -323,8 +340,22 @@ sub _open {
   }
 
   if (-e $configfile) {
-    open $fh, "<$configfile" or croak "Could not open $configfile!($!)\n";
-    $this->_read($fh);
+    if (exists $this->{files}->{$configfile} ) {
+      # do not read the same file twice, just return
+      # FIXME: should we croak here, when some "debugging" is enabled?
+      return;
+    }
+    else {
+      open $fh, "<$configfile" or croak "Could not open $configfile!($!)\n";
+
+      $this->{files}->{$configfile}    = 1;
+
+      my ($volume, $path, undef)       = splitpath($configfile);
+      $this->{'CurrentConfigFilePath'} = catpath($volume, $path, '');
+
+      $this->_read($fh);
+      undef $this->{'CurrentConfigFilePath'};
+    }
   }
   else {
     if (defined $this->{ConfigPath}) {
@@ -496,7 +527,10 @@ sub _read {
       # look for include statement(s)
       my $incl_file;
       my $path = "";
-      if (defined($this->{ConfigPath})) {
+      if ( $this->{IncludeRelative} and defined($this->{CurrentConfigFilePath})) {
+      	$path = $this->{CurrentConfigFilePath};
+      }
+      elsif (defined($this->{ConfigPath})) {
 	# fetch pathname of base config file, assuming the 1st one is the path of it
 	$path = $this->{ConfigPath}->[0];
       }
@@ -567,9 +601,15 @@ sub _parse {
     if (! defined $block) {                                # not inside a block @ the moment
       if (/^<([^\/]+?.*?)>$/) {                            # look if it is a block
 	$block = $1;                                       # store block name
-	($grab, $blockname) = split /\s\s*/, $block, 2;    # is it a named block? if yes, store the name separately
-	if ($blockname) {
-	  $block = $grab;
+	if ($block =~ /^"/ && $block =~ /"$/) {
+	  # quoted block, unquote it and do not split
+	  $block =~ s/"//g;
+	}
+	else {
+	  ($grab, $blockname) = split /\s\s*/, $block, 2;    # is it a named block? if yes, store the name separately
+	  if ($blockname) {
+	    $block = $grab;
+	  }
 	}
 	if ($this->{InterPolateVars}) {
 	  # interpolate block(name), add "<" and ">" to the key, because
@@ -965,6 +1005,11 @@ sub _write_hash {
   my $indent = "    " x $level;
   my $config_string;
 
+  if ($entry =~ /\s/) {
+    # quote the entry if it contains whitespaces
+    $entry = '"' . $entry . '"';
+  }
+
   $config_string .= $indent . "<" . $entry . ">\n";
   $config_string .= $this->_store($level + 1, %{$line});
   $config_string .= $indent . "</" . $entry . ">\n";
@@ -1333,7 +1378,7 @@ which allows you to set default values for particular config options directly.
 =item B<-Tie>
 
 B<-Tie> takes the name of a Tie class as argument that each new hash should be
-based off of. 
+based off of.
 
 This hash will be used as the 'backing hash' instead of a standard perl hash,
 which allows you to affect the way, variable storing will be done. You could, for
@@ -1450,6 +1495,9 @@ By default it is turned off.
 
 Returns a hash structure which represents the whole config.
 
+=item files()
+
+Returns a list of all files read in.
 
 =item save_file()
 
@@ -1657,6 +1705,42 @@ You cannot have more than one named block with the same name because it will
 be stored in a hashref and therefore be overwritten if a block occurs once more.
 
 
+=head1 WHITESPACES IN BLOCKS
+
+The normal behavior of Config::General is to look for whitespaces in
+block names to decide if it's a named block or just a simple block.
+
+Sometimes you may need blocknames which have whitespaces in their names.
+
+With named blocks this is no problem, as the module only looks for the
+first whitespace:
+
+ <person hugo gera>
+ </person>
+
+would be parsed to:
+
+ $VAR1 = {
+          'person' => {
+                       'hugo gera' => {
+                                      },
+                      }
+         };
+
+The problem occurs, if you want to have a simple block containing whitespaces:
+
+ <hugo gera>
+ </hugo gera>
+
+This would be parsed as a named block, which is not what you wanted. In this
+very case you may use quotation marks to indicate that it is not a named block:
+
+ <"hugo gera">
+ </"hugo gera">
+
+The save() method of the module inserts automatically quotation marks in such
+cases.
+
 
 =head1 EXPICIT EMPTY BLOCKS
 
@@ -1688,7 +1772,7 @@ Example:
  log  log2
 
 You will get a scalar if the option occured only once or an array if it occured
-more than once. If you expect multiple identical options, then you may need to 
+more than once. If you expect multiple identical options, then you may need to
 check if an option occured more than once:
 
  $allowed = $hash{jonas}->{tablestructure}->{allowed};
@@ -1968,7 +2052,7 @@ I recommend you to read the following documentations, which are supplied with pe
 
 =head1 COPYRIGHT
 
-Copyright (c) 2000-2004 Thomas Linden
+Copyright (c) 2000-2005 Thomas Linden
 
 This library is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
@@ -1985,7 +2069,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-2.27
+2.28
 
 =cut
 

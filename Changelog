@@ -1,3 +1,22 @@
+ 2.28
+	 - added internal list of files opened so far to avoid
+	   reading in the same file multiple times.
+	   Suggested by Michael Graham.
+
+	 - added new method files() which returns the above list.
+
+	 - added workaround for foolish perl installation on
+	   debian systems (croak() doesn't work anymore as of
+	   5.8.4, it's a shame!)
+
+	 - applied patch by Michael Graham which fixes IncludeRelative
+	   feature, now an included file is being included relative
+	   to the calling config file, not the first one.
+
+	 - added 'make test' targets for files() and include
+	   stuff. (by Michael too)
+
+
  2.27
          - bugfix in _store, which caused warning when saving
 	   a config containing empty hashes. Reported by 

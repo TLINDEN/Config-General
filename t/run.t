@@ -6,7 +6,7 @@
 #
 # Under normal circumstances every test should succeed.
 
-BEGIN { $| = 1; print "1..19\n";}
+BEGIN { $| = 1; print "1..22\n";}
 use lib "blib/lib";
 use Config::General;
 use Data::Dumper;
@@ -192,6 +192,87 @@ else {
   print STDERR "19 not ok\n";
 }
 pause;
+
+
+# testing files() method
+my $conf20 = Config::General->new(
+    -file => "t/cfg.20.a",
+    -MergeDuplicateOptions => 1
+);
+my %h20 = $conf20->getall();
+
+my %expected_h20 = (
+    'seen_cfg.20.a' => 'true',
+    'seen_cfg.20.b' => 'true',
+    'seen_cfg.20.c' => 'true',
+    'last'          => 'cfg.20.c',
+);
+
+my %files = map { $_ => 1 } $conf20->files();
+
+my %expected_files = map { $_ => 1 } (
+    't/cfg.20.a',
+    't/cfg.20.b',
+    't/cfg.20.c',
+);
+
+if (&comp(\%h20, \%expected_h20) and &comp(\%files, \%expected_files)) {
+  print "ok\n";
+  print STDERR " .. ok # testing files() method\n";
+}
+else {
+  print "20 not ok\n";
+  print STDERR "20 not ok\n";
+}
+pause;
+
+# testing improved IncludeRelative option
+
+# First try without -IncludeRelative
+# this should fail
+eval {
+    my $conf21 = Config::General->new(
+        -file => "t/sub1/sub2/sub3/cfg.sub3",
+        -MergeDuplicateOptions => 1,
+    );
+};
+if ($@) {
+  print "ok\n";
+  print STDERR " .. ok # prevented from loading relative cfgs without -IncludeRelative\n";
+}
+else {
+  print "21 not ok\n";
+  print STDERR "21 not ok\n";
+}
+pause;
+
+# Now try with -IncludeRelative
+# this should fail
+
+my $conf22 = Config::General->new(
+    -file => "t/sub1/sub2/sub3/cfg.sub3",
+    -MergeDuplicateOptions => 1,
+    -IncludeRelative       => 1,
+);
+
+my %h22 = $conf22->getall;
+my %expected_h22 = (
+    'sub3_seen' => 'yup',
+    'sub2_seen' => 'yup',
+    'sub1_seen' => 'yup',
+    'fruit'     => 'mango',
+);
+
+if (&comp(\%h22, \%expected_h22)) {
+  print "ok\n";
+  print STDERR " .. ok # loaded relative to included files\n";
+}
+else {
+  print "22 not ok\n";
+  print STDERR "22 not ok\n";
+}
+pause;
+
 
 
 
