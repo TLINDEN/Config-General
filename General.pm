@@ -18,7 +18,7 @@ use strict;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = "1.32";
+$Config::General::VERSION = "1.33";
 
 use vars  qw(@ISA @EXPORT);
 @ISA    = qw(Exporter);
@@ -445,6 +445,9 @@ sub _parse_value {
   # otherwise just return the given value unchanged
   #
   my($this, $option, $value) =@_;
+
+  # avoid "Use of uninitialized value"
+  $value ||= "";
 
   # make true/false values to 1 or 0 (-AutoTrue)
   if ($this->{AutoTrue}) {
@@ -1437,7 +1440,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-1.32
+1.33
 
 =cut
 

@@ -1,3 +1,8 @@
+ 1.32    - fixed bug in _parse_value() which caused perl to complain
+	   with "Use of uninitialized value in..." if a value was
+	   empty.
+
+
  1.32    - *argl* ... I forgot Interpolated.pm, don't know how that
            could happen, in 1.29 it was "lost". However - 
 	   I added it again now.
