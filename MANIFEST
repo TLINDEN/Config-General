@@ -1,5 +1,6 @@
 Changelog
 General/Extended.pm
+General/Interpolated.pm
 General.pm
 MANIFEST
 Makefile.PL

@@ -17,7 +17,7 @@ use FileHandle;
 use strict;
 use Carp;
 
-$Config::General::VERSION = "1.27";
+$Config::General::VERSION = "1.28";
 
 sub new {
   #
@@ -157,18 +157,39 @@ sub _read {
 
   foreach (@stuff) {
     chomp;
-    # patch by "Manuel Valente" <manuel@ripe.net>:
-    if (!$hierend) {
+    if (/(\s*\/\*.*\*\/\s*)/) {
+      # single c-comment on one line
+      s/\s*\/\*.*\*\/\s*//;
+    }
+    elsif (/^\s*\/\*/) {                           # the beginning of a C-comment ("/*"), from now on ignore everything.
+      if (/\*\/\s*$/) {                         # C-comment end is already there, so just ignore this line!
+	$c_comment = 0;
+      }
+      else {
+	$c_comment = 1;
+      }
+    }
+    elsif (/\*\//) {
+      if (!$c_comment) {
+	warn "invalid syntax: found end of C-comment without previous start!\n";
+      }
+      $c_comment = 0;                           # the current C-comment ends here, go on
+      s/^.*\*\///;                              # if there is still stuff, it will be read
+    }
+
+    next if($c_comment);                        # ignore EVERYTHING from now on
+
+    if (!$hierend) {                            # patch by "Manuel Valente" <manuel@ripe.net>:
       s/(?<!\\)#.+$//;                          # Remove comments
       next if /^#/;                             # Remove lines beginning with "#"
       next if /^\s*$/;                          # Skip empty lines
       s/\\#/#/g;                                # remove the \ char in front of masked "#"
     }
     if (/^\s*(\S+?)(\s*=\s*|\s+)<<(.+?)$/) {    # we are @ the beginning of a here-doc
-      $hier = $1;                               # $hier is the actual here-doc
+      $hier    = $1;                            # $hier is the actual here-doc
       $hierend = $3;                            # the here-doc end string, i.e. "EOF"
     }
-    elsif (defined $hierend && /^(\s*)\Q$hierend\E$/) {             # the current here-doc ends here
+    elsif (defined $hierend && /^(\s*)\Q$hierend\E\s*$/) {             # the current here-doc ends here (allow spaces)
       my $indent = $1;                          # preserve indentation
       $hier .= " " . chr(182);                  # append a "¶" to the here-doc-name, so _parse will also preserver indentation
       if ($indent) {
@@ -185,29 +206,16 @@ sub _read {
       undef $hier;
       undef $hierend;
     }
-    elsif (/^\s*\/\*/) {                        # the beginning of a C-comment ("/*"), from now on ignore everything.
-      if (/\*\/\s*$/) {                         # C-comment end is already there, so just ignore this line!
-	$c_comment = 0;
-      }
-      else {
-	$c_comment = 1;
-      }
-    }
-    elsif (/\*\//) {
-      if (!$c_comment) {
-	warn "invalid syntax: found end of C-comment without previous start!\n";
-      }
-      $c_comment = 0;                           # the current C-comment ends here, go on
-    }
+
     elsif (/\\$/) {                             # a multiline option, indicated by a trailing backslash
       chop;
       s/^\s*//;
-      $longline .= $_ if(!$c_comment);          # store in $longline
+      $longline .= $_;                          # store in $longline
     }
     else {                                      # any "normal" config lines
       if ($longline) {                          # previous stuff was a longline and this is the last line of the longline
 	s/^\s*//;
-	$longline .= $_ if(!$c_comment);
+	$longline .= $_;
 	push @{$this->{content}}, $longline;    # push it onto the content stack
 	undef $longline;
       }
@@ -216,22 +224,20 @@ sub _read {
       }
       else {
 	# look for include statement(s)
-	if (!$c_comment) {
-	  my $incl_file;
-	  if (/^\s*<<include (.+?)>>\s*$/i || (/^\s*include (.+?)\s*$/i && $this->{UseApacheInclude})) {
-	    $incl_file = $1;
-	    if ($this->{IncludeRelative} && $this->{configpath} && $incl_file !~ /^\//) {
-	      # include the file from within location of $this->{configfile}
-	      $this->_open($this->{configpath} . "/" . $incl_file);
-	    }
-	    else {
-		# include the file from within pwd, or absolute
-	      $this->_open($incl_file);
-	      }
+	my $incl_file;
+	if (/^\s*<<include (.+?)>>\s*$/i || (/^\s*include (.+?)\s*$/i && $this->{UseApacheInclude})) {
+	  $incl_file = $1;
+	  if ($this->{IncludeRelative} && $this->{configpath} && $incl_file !~ /^\//) {
+	    # include the file from within location of $this->{configfile}
+	    $this->_open($this->{configpath} . "/" . $incl_file);
 	  }
 	  else {
-	    push @{$this->{content}}, $_;
+	    # include the file from within pwd, or absolute
+	    $this->_open($incl_file);
 	  }
+	}
+	else {
+	  push @{$this->{content}}, $_;
 	}
       }
     }
@@ -979,6 +985,11 @@ There is a way to access a parsed config the OO-way.
 Use the module B<Config::General::Extended>, which is
 supplied with the Config::General distribution.
 
+=head1 VARIABLE INTERPOLATION
+
+You can use variables inside your configfiles if you like. To do
+that you have to use the module B<Config::General::Interpolated>,
+which is supplied with the Config::General distribution.
 
 =head1 SEE ALSO
 
@@ -1011,7 +1022,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-1.27
+1.28
 
 =cut
 

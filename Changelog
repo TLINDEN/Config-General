@@ -1,3 +1,21 @@
+ 1.28:
+	 - added contributed sub module Config::General::Interpolated
+	   by "Wei-Hon Chen" <plasmaball@pchome.com.tw> with
+	   help from "Autrijus Tang" <autrijus@autrijus.org>
+	   which makes it possible to use variables inside
+	   config files.
+	 - _read() accepts now c-comments inside c-comments if
+	   they are on a single line.
+	 - _read() is now more tolerant to here-identifiers
+	   (the ends of here-docs), whitespaces right after
+	   such an identifier are allowed (i.e. "EOF  ").
+	 - _read() does now behave somewhat different with
+	   C-comments, they will be the first thing being
+	   processed in a config, so the parser really
+	   ignores everything inside C-comments. Previously
+	   it did not do that, for example here-docs has
+	   not been ignored.
+
  1.27:   - "make test" complained about uninitialized value
            in :146, which is now fixed.
 
