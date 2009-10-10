@@ -1,3 +1,8 @@
+ 2.10    - added -StrictVars documentation section to the POD,
+	   which was missing.
+
+         - fixed a formatting error in the POD documentation.
+
  2.09    - added bugfix in '#' comment parsing. If current state
 	   was within a block, then /^   #/ was not ignored as
 	   comment but instead added as variable. Reported by

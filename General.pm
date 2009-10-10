@@ -17,7 +17,7 @@ use strict;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = "2.09";
+$Config::General::VERSION = "2.10";
 
 use vars  qw(@ISA @EXPORT);
 @ISA    = qw(Exporter);
@@ -1131,10 +1131,17 @@ access the parsed config. See L<Config::General::Extended> for more informations
 =item B<-StrictObjects>
 
 By default this is turned on, which causes Config::General to croak with an
-error if you try to access a non-existent key using the oop-way (B<-ExtendedAcess
+error if you try to access a non-existent key using the oop-way (B<-ExtendedAcess>
 enabled). If you turn B<-StrictObjects> off (by setting to 0 or "no") it will
 just return an empty object/hash/scalar. This is valid for OOP-access 8via AUTOLOAD
 and for the methods obj(), hash() and value().
+
+
+=item B<-StrictVars>
+
+By default this is turned on, which causes Config::General to croak with an
+error if an undefined variable with B<InterPolateVars> turned on occurs
+in a config. Set to I<false> (i.e. 0) to avoid such error messages.
 
 =item B<-SplitPolicy>
 
@@ -1707,7 +1714,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-2.09
+2.10
 
 =cut
 
