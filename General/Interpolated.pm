@@ -1,5 +1,5 @@
 package Config::General::Interpolated;
-$Config::General::Interpolated::VERSION = "2.0";
+$Config::General::Interpolated::VERSION = "2.01";
 
 use strict;
 use Carp;
@@ -56,11 +56,27 @@ sub _interpolate  {
   #
   my ($this, $key, $value) = @_;
 
+  my $prevkey;
+
+  if ($this->{level} == 1) {
+    # top level
+    $prevkey = " ";
+  }
+  else {
+    # incorporate variables outside current scope(block) into
+    # our scope to make them visible to _interpolate()
+    foreach my $key (keys %{$this->{stack}->{ $this->{level} - 1}->{ $this->{lastkey} }}) {
+      $this->{stack}->{ $this->{level} }->{ $this->{prevkey} }->{$key} =
+	$this->{stack}->{ $this->{level} - 1}->{ $this->{lastkey} }->{$key};
+    }
+    $prevkey = $this->{prevkey};
+  }
+
   $value =~ s{$this->{regex}}{
     my $con = $1;
     my $var = $3;
-    if (exists $this->{varstack}->{$var}) {
-      $con . $this->{varstack}->{$var};
+    if (exists $this->{stack}->{ $this->{level} }->{ $prevkey }->{$var}) {
+      $con . $this->{stack}->{ $this->{level} }->{ $prevkey }->{$var};
     }
     else {
       if ($this->{StrictVars}) {
@@ -73,11 +89,97 @@ sub _interpolate  {
     }
   }egx;
 
-  $this->{varstack}->{$key} = $value;
+  $this->{stack}->{ $this->{level} }->{ $prevkey }->{$key} = $value;
 
   return $value;
 };
 
+
+sub _interpolate_hash {
+  #
+  # interpolate a complete hash and keep the results
+  # on the varstack.
+  #
+  # called directly by Config::General::new()
+  #
+  my ($this, $config) = @_;
+
+  $this->{level}    = 1;
+  $this->{upperkey} = "";
+  $this->{lastkey}  = "";
+  $this->{prevkey}  = " ";
+
+  $config = $this->_var_hash_stacker($config);
+
+  $this->{level}    = 1;
+  $this->{upperkey} = "";
+  $this->{lastkey}  = "";
+  $this->{prevkey}  = " ";
+
+  return $config;
+}
+
+sub _var_hash_stacker {
+  #
+  # build a varstack of a given hash ref
+  #
+  my ($this, $config) = @_;
+
+  
+
+  foreach my $key (keys %{$config}) {
+    if (ref($config->{$key}) eq "ARRAY" ) {
+      $this->{level}++;
+      $this->_savelast($key);
+      $config->{$key} = $this->_var_array_stacker($config->{$key}, $key);
+      $this->_backlast($key);
+      $this->{level}--;
+    }
+    elsif (ref($config->{$key}) eq "HASH") {
+      $this->{level}++;
+      $this->_savelast($key);
+      $config->{$key} = $this->_var_hash_stacker($config->{$key});
+      $this->_backlast($key);
+      $this->{level}--;
+    }
+    else {
+      # SCALAR
+      $config->{$key} = $this->_interpolate($key, $config->{$key});
+    }
+  }
+
+  #$this->{level}--;
+  return $config;
+}
+
+
+sub _var_array_stacker {
+  #
+  # same as _var_hash_stacker but for arrayrefs
+  #
+  my ($this, $config, $key) = @_;
+
+  my @new;
+  #$this->{level}++;
+
+  foreach my $entry (@{$config}) {
+    if (ref($entry) eq "HASH") {
+      $entry = $this->_var_hash_stacker($entry);
+    }
+    elsif (ref($entry) eq "ARRAY") {
+      # ignore this. Arrays of Arrays cannot be created/supported
+      # with Config::General, because they are not accessible by
+      # any key (anonymous array-ref)
+      next;
+    }
+    else {
+      $entry = $this->_interpolate($key, $entry);
+    }
+    push @new, $entry;
+  }
+
+  return  \@new;
+}
 
 
 1;
@@ -184,7 +286,7 @@ See L<http://www.perl.com/perl/misc/Artistic.html>
 
 =head1 VERSION
 
-2.0
+2.01
 
 =cut
 

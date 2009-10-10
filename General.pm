@@ -17,7 +17,7 @@ use strict;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = "2.11";
+$Config::General::VERSION = "2.12";
 
 use vars  qw(@ISA @EXPORT);
 @ISA    = qw(Exporter);
@@ -69,7 +69,10 @@ sub new {
 
 	      StrictVars            => 1,       # be strict on undefined variables in Interpolate mode
 
-	      parsed                => 0
+	      parsed                => 0,
+	      upperkey              => "",
+	      lastkey               => "",
+	      prevkey               => " ",
 	     };
 
   # create the class instance
@@ -197,6 +200,9 @@ sub new {
 
   # process as usual
   if (!$self->{parsed}) {
+    if ($self->{DefaultConfig} && $self->{InterPolateVars}) {
+      $self->{DefaultConfig} = $self->_interpolate_hash($self->{DefaultConfig});
+    }
     if (exists $self->{StringContent}) {
       # consider the supplied string as config file
       $self->_read($self->{StringContent}, "SCALAR");
@@ -408,8 +414,6 @@ sub _parse {
   local $_;
   my $indichar = chr(182);  # ¶, inserted by _open, our here-doc indicator
 
-
-
   foreach (@{$content}) {                                  # loop over content stack
     chomp;
     $chunk++;
@@ -435,7 +439,6 @@ sub _parse {
 	($option,$value) = split /$this->{SplitDelimiter}/, $_, 2;
       }
     }
-
 
     if ($value && $value =~ /^"/ && $value =~ /"$/) {
       $value =~ s/^"//;                                    # remove leading and trailing "
@@ -503,6 +506,7 @@ sub _parse {
       }
       else {                                               # calling myself recursively, end of $block reached, $block_level is 0
 	if ($blockname) {                                  # a named block, make it a hashref inside a hash within the current node
+	  $this->_savelast($blockname);
 	  if (exists $config->{$block}->{$blockname}) {    # the named block already exists, make it an array
 	    if ($this->{MergeDuplicateBlocks}) {
 	      # just merge the new block with the same name as an existing one into
@@ -531,8 +535,10 @@ sub _parse {
 	  else {                                          # the first occurence of this particular named block
 	    $config->{$block}->{$blockname} = $this->_parse($config->{$block}->{$blockname}, \@newcontent);
 	  }
+	  $this->_backlast($blockname);
 	}
 	else {                                             # standard block
+	  $this->_savelast($block);
 	  if (exists $config->{$block}) {                  # the block already exists, make it an array
 	    if ($this->{MergeDuplicateBlocks}) {
 	      # just merge the new block with the same name as an existing one into
@@ -562,6 +568,7 @@ sub _parse {
 	    # the first occurence of this particular block
 	    $config->{$block} = $this->_parse($config->{$block}, \@newcontent);
 	  }
+	  $this->_backlast($block);
 	}
 	undef $blockname;
 	undef $block;
@@ -582,8 +589,18 @@ sub _parse {
 }
 
 
+sub _savelast {
+  my($this, $key) = @_;
+  $this->{upperkey} = $this->{lastkey};
+  $this->{lastkey}  = $this->{prevkey};
+  $this->{prevkey}  = $key;
+}
 
-
+sub _backlast {
+  my($this, $key) = @_;
+  $this->{prevkey} = $this->{lastkey};
+  $this->{lastkey} = $this->{upperkey};
+}
 
 sub _parse_value {
   #
@@ -1724,7 +1741,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-2.11
+2.12
 
 =cut
 

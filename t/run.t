@@ -120,7 +120,7 @@ print STDERR " .. ok # Using AUTOLOAD methods\n";
 
 
 # testing variable interpolation
-my $conf16 = new Config::General(-ConfigFile => "t/cfg.16", -InterPolateVars => 1);
+my $conf16 = new Config::General(-ConfigFile => "t/cfg.16", -InterPolateVars => 1, -StrictVars => 0);
 my %h16 = $conf16->getall();
 if($h16{etc}->{log} eq "/usr/local/log/logfile") {
    print "ok\n";

@@ -1,3 +1,13 @@
+ 2.12    - fixed cpan bugid #1768, stuff inside a hash given
+	   by the -DefaultConfig parameter was ignored by
+	   the new interpolation code, this has been fixed.
+
+	 - fixed another bug in the new interpolation code,
+	   which made variable global, the variable scope
+	   were ignored. Now a special constructed hash
+	   exists, which makes sure, that variables only
+	   valid within its correct scope.
+
  2.11	 - heavy change in the variable interpolation code.
 	   Peter Sergeant <pete@clueball.com> reported this
 	   mis-behavior. The problem was that the whole hash
