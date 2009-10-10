@@ -18,7 +18,7 @@ use strict;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = "2.19";
+$Config::General::VERSION = "2.20";
 
 use vars  qw(@ISA @EXPORT);
 @ISA    = qw(Exporter);
@@ -72,7 +72,9 @@ sub new {
 
 	      StrictVars            => 1,       # be strict on undefined variables in Interpolate mode
 
-	      parsed                => 0,
+	      Tie                   => "",      # could be set to a perl module for tie'ing new hashes
+
+	      parsed                => 0,       # internal state stuff for variable interpolation
 	      upperkey              => "",
 	      lastkey               => "",
 	      prevkey               => " ",
@@ -107,6 +109,14 @@ sub new {
       }
       delete $conf{-String};
     }
+
+    if (exists $conf{-Tie}) {
+      if ($conf{-Tie}) {
+	$self->{Tie} = delete $conf{-Tie};
+	$self->{DefaultConfig} = $self->_hashref();
+      }
+    }
+
     if (exists $conf{-FlagBits}) {
       if ($conf{-FlagBits} && ref($conf{-FlagBits}) eq "HASH") {
 	$self->{FlagBits} = 1;
@@ -121,11 +131,10 @@ sub new {
       }
       elsif ($conf{-DefaultConfig} && ref($conf{-DefaultConfig}) eq "") {
 	$self->_read($conf{-DefaultConfig}, "SCALAR");
-	$self->{DefaultConfig} = $self->_parse({}, $self->{content});
+	$self->{DefaultConfig} = $self->_parse($self->_hashref(), $self->{content});
 	$self->{content} = ();
       }
       delete $conf{-DefaultConfig};
-      delete $conf{-BaseHash}; # ignore BaseHash if a default one was given
     }
 
     # handle options which may either be true or false
@@ -161,7 +170,7 @@ sub new {
   }
   else {
     # this happens if $#param == -1,1 thus no param was given to new!
-    $self->{config} = {};
+    $self->{config} = $this->_hashref();
     $self->{parsed} = 1;
   }
 
@@ -207,7 +216,7 @@ sub new {
   # process as usual
   if (!$self->{parsed}) {
     if ($self->{DefaultConfig} && $self->{InterPolateVars}) {
-      $self->{DefaultConfig} = $self->_interpolate_hash($self->{DefaultConfig});
+      $self->{DefaultConfig} = $self->_interpolate_hash($self->{DefaultConfig}); # FIXME: _hashref() ?
     }
     if (exists $self->{StringContent}) {
       # consider the supplied string as config file
@@ -242,11 +251,12 @@ sub new {
 	}
 	$self->_open($self->{configfile});
 	# now, we parse immdediately, getall simply returns the whole hash
+	$self->{config} = $self->_hashref();
 	$self->{config} = $self->_parse($self->{DefaultConfig}, $self->{content});
       }
       else {
 	# hm, no valid config file given, so try it as an empty object
-	$self->{config} = {};
+	$self->{config} = $this->_hashref();
 	$self->{parsed} = 1;
       }
     }
@@ -301,8 +311,15 @@ sub _open {
     }
   }
 
+  local ($/) = $/;
+  unless ($/) {
+    carp("\$/ (INPUT_RECORD_SEPARATOR) is undefined.  Guessing you want a line feed character");
+    $/ = "\n";
+  }
+
   if (-e $configfile) {
     open $fh, "<$configfile" or croak "Could not open $configfile!($!)\n";
+    binmode($fh);
     $this->_read($fh);
   }
   else {
@@ -582,17 +599,17 @@ sub _parse {
 	}
       }
     }
-    elsif (/^<([^\/]+?.*?)>$/) {                           # found a start block inside a block, don't forget it
-      $block_level++;                                      # $block_level indicates wether we are still inside a node
-      push @newcontent, $_;                                # push onto new content stack for later recursive call of _parse()
+    elsif (/^<([^\/]+?.*?)>$/) {    # found a start block inside a block, don't forget it
+      $block_level++;               # $block_level indicates wether we are still inside a node
+      push @newcontent, $_;         # push onto new content stack for later recursive call of _parse()
     }
     elsif (/^<\/(.+?)>$/) {
-      if ($block_level) {                                  # this endblock is not the one we are searching for, decrement and push
-	$block_level--;                                    # if it is 0, then the endblock was the one we searched for, see below
-	push @newcontent, $_;                              # push onto new content stack
+      if ($block_level) {           # this endblock is not the one we are searching for, decrement and push
+	$block_level--;             # if it is 0, then the endblock was the one we searched for, see below
+	push @newcontent, $_;       # push onto new content stack
       }
-      else {                                               # calling myself recursively, end of $block reached, $block_level is 0
-	if ($blockname) {                                  # a named block, make it a hashref inside a hash within the current node
+      else {                        # calling myself recursively, end of $block reached, $block_level is 0
+	if ($blockname) {           # a named block, make it a hashref inside a hash within the current node
 	  $this->_savelast($blockname);
 	  if (exists $config->{$block}->{$blockname}) {    # the named block already exists, make it an array
 	    if ($this->{MergeDuplicateBlocks}) {
@@ -614,7 +631,7 @@ sub _parse {
 		else {
 		  push @ar, $savevalue;
 		}
-		push @ar, $this->_parse( {}, \@newcontent);  # append it
+		push @ar, $this->_parse( $this->_hashref(), \@newcontent);  # append it
 		$config->{$block}->{$blockname} = \@ar;
 	      }
 	    }
@@ -625,7 +642,8 @@ sub _parse {
 	  }
 	  else {
 	    # the first occurence of this particular named block
-	    $config->{$block}->{$blockname} = $this->_parse($config->{$block}->{$blockname}, \@newcontent);
+	    #### $config->{$block}->{$blockname} = $this->_parse($config->{$block}->{$blockname}, \@newcontent);
+	    $config->{$block}->{$blockname} = $this->_parse($this->_hashref(), \@newcontent);
 	  }
 	  $this->_backlast($blockname);
 	}
@@ -651,14 +669,15 @@ sub _parse {
 		else {
 		  push @ar, $savevalue;
 		}
-		push @ar, $this->_parse( {}, \@newcontent);
+		push @ar, $this->_parse( $this->_hashref(), \@newcontent);
 		$config->{$block} = \@ar;
 	      }
 	    }
 	  }
 	  else {
 	    # the first occurence of this particular block
-	    $config->{$block} = $this->_parse($config->{$block}, \@newcontent);
+	    #### $config->{$block} = $this->_parse($config->{$block}, \@newcontent);
+	    $config->{$block} = $this->_parse($this->_hashref(), \@newcontent);
 	  }
 	  $this->_backlast($block);
 	}
@@ -922,6 +941,30 @@ sub _write_hash {
   $config_string .= $indent . "</" . $entry . ">\n";
 
   return $config_string
+}
+
+
+sub _hashref {
+  #
+  # return a probably tied new empty hash ref
+  #
+  my($this) = @_;
+  my ($package, $filename, $line, $subroutine, $hasargs,
+      $wantarray, $evaltext, $is_require, $hints, $bitmask) = caller(0);
+  if ($this->{Tie}) {
+    eval {
+      eval "require $this->{Tie}";
+    };
+    if ($@) {
+      croak "Could not create a tied hash of type: " . $this->{Tie} . ": " . $@;
+    }
+    my %hash;
+    tie %hash, $this->{Tie};
+    return \%hash;
+  }
+  else {
+    return {};
+  }
 }
 
 
@@ -1257,6 +1300,12 @@ This can be a hash reference or a simple scalar (string) of a config. This
 causes the module to preset the resulting config hash with the given values,
 which allows you to set default values for particular config options directly.
 
+
+=item B<-Tie>
+
+B<-Tie> takes the name of a Tie class as argument that each new hash should be
+based off of. 
+
 This hash will be used as the 'backing hash' instead of a standard perl hash,
 which allows you to affect the way, variable storing will be done. You could, for
 example supply a tied hash, say Tie::DxHash, which preserves ordering of the
@@ -1265,6 +1314,24 @@ a hash tied to a DBM file to save the parsed variables to disk.
 
 There are many more things to do in tie-land, see L<tie> to get some interesting
 ideas.
+
+If you want to use the B<-Tie> feature together with B<-DefaultConfig> make sure
+that the hash supplied to B<-DefaultConfig> must be tied to the same Tie class.
+
+Make sure that the hash which receives the generated hash structure (e.g. which
+you are using in the assignment: %hash = $config->getall()) must be tied to
+the same Tie class.
+
+Example:
+
+ use Config::General;
+ use Tie::IxHash;
+ tie my %hash, "Tie::IxHash";
+ %hash = ParseConfig(
+           -ConfigFile => shift(),
+           -Tie => "Tie::IxHash"
+	 );
+
 
 =item B<-InterPolateVars>
 
@@ -1861,7 +1928,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-2.19
+2.20
 
 =cut
 

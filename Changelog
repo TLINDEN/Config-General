@@ -1,3 +1,23 @@
+ 2.20
+	 - fixed bug reported by Stefano di Sandro <stedis@ulis.it>: in
+ 	   OOP mode (extended access) the obj() method returned the whole
+	   config object if the given key does not exist. Now it returns
+	   a new empty object.
+
+	 - added patch by David Dick <david_dick@iprimus.com.au> which
+	   sets $/ if it is unset.
+
+	 - added patch by David Dick <david_dick@iprimus.com.au> which
+	   calls the bindmode() function in case the modules is being
+	   used under win32 systems. Read perldoc -f binmode for more
+	   informations on this issue.
+
+	 - added feature suggested by Chase Phillips <cmp@uiuc.edu>:
+	   the new() method has a new parameter -Tie which takes the
+	   name of a Tie class that each new hash should be based off
+	   of. This makes it possible to create a config hash with
+	   ordered contents across nested structures.
+
  2.19
 	 - forgot to import 'catfile' from File::Spec. Bug reported by
  	   various people.
