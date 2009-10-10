@@ -17,7 +17,7 @@ use FileHandle;
 use strict;
 use Carp;
 
-$Config::General::VERSION = "1.25";
+$Config::General::VERSION = "1.26";
 
 sub new {
   #
@@ -41,6 +41,11 @@ sub new {
 	$self->{NoMultiOptions} = 1;
       }
     }
+    if (exists $conf{-String} ) {
+      if ($conf{-String}) {
+	$self->{StringContent} = $conf{-String};
+      }
+    }
     if (exists $conf{-LowerCaseNames}) {
       if ($conf{-LowerCaseNames}) {
 	$self->{LowerCaseNames} = 1;
@@ -57,6 +62,11 @@ sub new {
 	$self->{UseApacheInclude} = 1;
       }
     }
+    if (exists $conf{-MergeDuplicateBlocks}) {
+      if ($conf{-MergeDuplicateBlocks}) {
+	$self->{MergeDuplicateBlocks} = 1;
+      }
+    }
   }
   elsif ($#param == 0) {
     # use of the old style
@@ -69,10 +79,20 @@ sub new {
   }
 
   # process as usual
-  if (ref($configfile) eq "HASH") {
+  if (exists $self->{StringContent}) {
+    # consider the supplied string as config file
+    $self->_read($self->{StringContent}, "SCALAR");
+    $self->{config} = $self->_parse({}, $self->{content});
+  }
+  elsif (ref($configfile) eq "HASH") {
     # initialize with given hash
     $self->{config} = $configfile;
     $self->{parsed} = 1;
+  }
+  elsif (ref($configfile) eq "GLOB") {
+    # use the file the glob points to
+    $self->_read($configfile);
+    $self->{config} = $self->_parse({}, $self->{content});
   }
   else {
     # open the file and read the contents in
@@ -99,105 +119,122 @@ sub getall {
 
 
 
-
 sub _open {
   #
   # open the config file
-  # and store it's contents in @content
   #
   my($this, $configfile) = @_;
-  my(@content, $c_comment, $longline, $hier, $hierend, @hierdoc);
-  local $_;
   my $fh = new FileHandle;
-
   if (-e $configfile) {
     open $fh, "<$configfile" or croak "Could not open $configfile!($!)\n";
-    while (<$fh>) {
-      chomp;
+    $this->_read($fh);
+  }
+  else {
+    croak "The file \"$configfile\" does not exist!\n";
+  }
+}
 
-      # patch by "Manuel Valente" <manuel@ripe.net>:
-      if (!$hierend) {
-	s/(?<!\\)#.+$//;                          # Remove comments
-	next if /^#/;                             # Remove lines beginning with "#"
-	next if /^\s*$/;                          # Skip empty lines
-	s/\\#/#/g;                                # remove the \ char in front of masked "#"
-      }
-      if (/^\s*(\S+?)(\s*=\s*|\s+)<<(.+?)$/) {    # we are @ the beginning of a here-doc
-	$hier = $1;                               # $hier is the actual here-doc
-	$hierend = $3;                            # the here-doc end string, i.e. "EOF"
-      }
-      elsif (defined $hierend && /^(\s*)\Q$hierend\E$/) {             # the current here-doc ends here
-	my $indent = $1;                          # preserve indentation
-	$hier .= " " . chr(182);                  # append a "¶" to the here-doc-name, so _parse will also preserver indentation
-	if ($indent) {
-	  foreach (@hierdoc) {
-	    s/^$indent//;                         # i.e. the end was: "    EOF" then we remove "    " from every here-doc line
-	    $hier .= $_ . "\n";                   # and store it in $hier
-	  }
+
+sub _read {
+  #
+  # store the config contents in @content
+  #
+  my($this, $fh, $flag) = @_;
+  my(@stuff, @content, $c_comment, $longline, $hier, $hierend, @hierdoc);
+  local $_;
+
+  if ($flag eq "SCALAR") {
+    if (ref($fh) eq "ARRAY") {
+      @stuff = @{$fh};
+    }
+    else {
+      @stuff = join "\n", $fh;
+    }
+  }
+  else {
+    @stuff = <$fh>;
+  }
+
+  foreach (@stuff) {
+    chomp;
+    # patch by "Manuel Valente" <manuel@ripe.net>:
+    if (!$hierend) {
+      s/(?<!\\)#.+$//;                          # Remove comments
+      next if /^#/;                             # Remove lines beginning with "#"
+      next if /^\s*$/;                          # Skip empty lines
+      s/\\#/#/g;                                # remove the \ char in front of masked "#"
+    }
+    if (/^\s*(\S+?)(\s*=\s*|\s+)<<(.+?)$/) {    # we are @ the beginning of a here-doc
+      $hier = $1;                               # $hier is the actual here-doc
+      $hierend = $3;                            # the here-doc end string, i.e. "EOF"
+    }
+    elsif (defined $hierend && /^(\s*)\Q$hierend\E$/) {             # the current here-doc ends here
+      my $indent = $1;                          # preserve indentation
+      $hier .= " " . chr(182);                  # append a "¶" to the here-doc-name, so _parse will also preserver indentation
+      if ($indent) {
+	foreach (@hierdoc) {
+	  s/^$indent//;                         # i.e. the end was: "    EOF" then we remove "    " from every here-doc line
+	  $hier .= $_ . "\n";                   # and store it in $hier
 	}
-	else {
-	  $hier .= join "\n", @hierdoc;           # there was no indentation of the end-string, so join it 1:1
-	}
-	push @{$this->{content}}, $hier;          # push it onto the content stack
-	@hierdoc = ();
-	undef $hier;
-	undef $hierend;
       }
-      elsif (/^\s*\/\*/) {                        # the beginning of a C-comment ("/*"), from now on ignore everything.
-	if (/\*\/\s*$/) {                         # C-comment end is already there, so just ignore this line!
-	  $c_comment = 0;
-	}
-	else {
-	  $c_comment = 1;
-	}
+      else {
+	$hier .= join "\n", @hierdoc;           # there was no indentation of the end-string, so join it 1:1
       }
-      elsif (/\*\//) {
-	if (!$c_comment) {
-	  warn "invalid syntax: found end of C-comment without previous start!\n";
-	}
-	$c_comment = 0;                           # the current C-comment ends here, go on
+      push @{$this->{content}}, $hier;          # push it onto the content stack
+      @hierdoc = ();
+      undef $hier;
+      undef $hierend;
+    }
+    elsif (/^\s*\/\*/) {                        # the beginning of a C-comment ("/*"), from now on ignore everything.
+      if (/\*\/\s*$/) {                         # C-comment end is already there, so just ignore this line!
+	$c_comment = 0;
       }
-      elsif (/\\$/) {                             # a multiline option, indicated by a trailing backslash
-	chop;
+      else {
+	$c_comment = 1;
+      }
+    }
+    elsif (/\*\//) {
+      if (!$c_comment) {
+	warn "invalid syntax: found end of C-comment without previous start!\n";
+      }
+      $c_comment = 0;                           # the current C-comment ends here, go on
+    }
+    elsif (/\\$/) {                             # a multiline option, indicated by a trailing backslash
+      chop;
+      s/^\s*//;
+      $longline .= $_ if(!$c_comment);          # store in $longline
+    }
+    else {                                      # any "normal" config lines
+      if ($longline) {                          # previous stuff was a longline and this is the last line of the longline
 	s/^\s*//;
-	$longline .= $_ if(!$c_comment);          # store in $longline
+	$longline .= $_ if(!$c_comment);
+	push @{$this->{content}}, $longline;    # push it onto the content stack
+	undef $longline;
       }
-      else {                                      # any "normal" config lines
-	if ($longline) {                          # previous stuff was a longline and this is the last line of the longline
-	  s/^\s*//;
-	  $longline .= $_ if(!$c_comment);
-	  push @{$this->{content}}, $longline;    # push it onto the content stack
-	  undef $longline;
-	}
-	elsif ($hier) {                           # we are inside a here-doc
-	  push @hierdoc, $_;                      # push onto here-dco stack
-	}
-	else {
-	  # look for include statement(s)
-	  if (!$c_comment) {
-	    my $incl_file;
-	    if (/^\s*<<include (.+?)>>\s*$/i || (/^\s*include (.+?)\s*$/i && $this->{UseApacheInclude})) {
-	      $incl_file = $1;
-	      if ($this->{IncludeRelative} && $this->{configpath} && $incl_file !~ /^\//) {
-		# include the file from within location of $this->{configfile}
-		$this->_open($this->{configpath} . "/" . $incl_file);
-	      }
-	      else {
-		# include the file from within pwd, or absolute
-		$this->_open($incl_file);
-	      }
+      elsif ($hier) {                           # we are inside a here-doc
+	push @hierdoc, $_;                      # push onto here-dco stack
+      }
+      else {
+	# look for include statement(s)
+	if (!$c_comment) {
+	  my $incl_file;
+	  if (/^\s*<<include (.+?)>>\s*$/i || (/^\s*include (.+?)\s*$/i && $this->{UseApacheInclude})) {
+	    $incl_file = $1;
+	    if ($this->{IncludeRelative} && $this->{configpath} && $incl_file !~ /^\//) {
+	      # include the file from within location of $this->{configfile}
+	      $this->_open($this->{configpath} . "/" . $incl_file);
 	    }
 	    else {
-	      push @{$this->{content}}, $_;
-	    }
+		# include the file from within pwd, or absolute
+	      $this->_open($incl_file);
+	      }
+	  }
+	  else {
+	    push @{$this->{content}}, $_;
 	  }
 	}
       }
     }
-    close $fh;
-  }
-  else {
-    croak "The file \"$configfile\" does not exist!\n";
   }
   return 1;
 }
@@ -280,18 +317,25 @@ sub _parse {
 	    if ($this->{NoMultiOptions}) {
 	      croak "Named block \"<$block $blockname>\" occurs more than once (level: $this->{level}, chunk $chunk)!\n";
 	    }
-	    else {                                         # preserve existing data
-	      my $savevalue = $config->{$block}->{$blockname};
-	      delete $config->{$block}->{$blockname};
-	      my @ar;
-	      if (ref $savevalue eq "ARRAY") {
-		push @ar, @{$savevalue};                   # preserve array if any
+	    else {
+	      if ($this->{MergeDuplicateBlocks}) {
+		# just merge the new block with the same name as an existing one into
+		# this one.
+		$config->{$block}->{$blockname} = $this->_parse($config->{$block}->{$blockname}, \@newcontent);
 	      }
-	      else {
-		push @ar, $savevalue;
+	      else {                                       # preserve existing data
+		my $savevalue = $config->{$block}->{$blockname};
+		delete $config->{$block}->{$blockname};
+		my @ar;
+		if (ref $savevalue eq "ARRAY") {
+		  push @ar, @{$savevalue};                   # preserve array if any
+		}
+		else {
+		  push @ar, $savevalue;
+		}
+		push @ar, $this->_parse( {}, \@newcontent);  # append it
+		$config->{$block}->{$blockname} = \@ar;
 	      }
-	      push @ar, $this->_parse( {}, \@newcontent);  # append it
-	      $config->{$block}->{$blockname} = \@ar;
 	    }
 	  }
 	  else {                                          # the first occurence of this particular named block
@@ -304,17 +348,24 @@ sub _parse {
 	      croak "Block \"<$block>\" occurs more than once (level: $this->{level}, chunk $chunk)!\n";
 	    }
 	    else {
-	      my $savevalue = $config->{$block};
-	      delete $config->{$block};
-	      my @ar;
-	      if (ref $savevalue eq "ARRAY") {
-		push @ar, @{$savevalue};
+	      if ($this->{MergeDuplicateBlocks}) {
+		# just merge the new block with the same name as an existing one into
+		# this one.
+		$config->{$block} = $this->_parse($config->{$block}, \@newcontent);
 	      }
 	      else {
-		push @ar, $savevalue;
+		my $savevalue = $config->{$block};
+		delete $config->{$block};
+		my @ar;
+		if (ref $savevalue eq "ARRAY") {
+		  push @ar, @{$savevalue};
+		}
+		else {
+		  push @ar, $savevalue;
+		}
+		push @ar, $this->_parse( {}, \@newcontent);
+		$config->{$block} = \@ar;
 	      }
-	      push @ar, $this->_parse( {}, \@newcontent);
-	      $config->{$block} = \@ar;
 	    }
 	  }
 	  else {
@@ -459,16 +510,21 @@ Possible ways to call B<new()>:
  $conf = new Config::General(\%somehash);
 
  $conf = new Config::General(
-                       -file              => "rcfile",
-                       -AllowMultiOptions => "no",
-                       -LowerCaseNames    => "yes",
-                       -UseApacheInclude  => 1,
-                       -IncludeRelative   => 1,
+                       -file                 => "rcfile",
+                       -AllowMultiOptions    => "no",
+                       -LowerCaseNames       => "yes",
+                       -UseApacheInclude     => 1,
+                       -IncludeRelative      => 1,
+                       -MergeDuplicateBlocks => 1,
                             );
 
- $conf = new Config::General(
-                       -hash => \%somehash,
-                            );
+ $conf = new Config::General( -hash => \%somehash );
+
+ $conf = new Config::General( -String => $complete_config );
+
+ $conf = new Config::General( -String => \@config_lines );
+
+ $conf = new Config::General( -file => \*FD );
 
 This method returns a B<Config::General> object (a hash blessed into "Config::General" namespace.
 All further methods must be used from that returned object. see below.
@@ -482,8 +538,10 @@ still supported. Possible parameters are:
 
  or a hash with one or more of the following keys set:
 
-    -file               - a filename.
+    -file               - a filename or a filehandle
     -hash               - a hash reference.
+    -String             - a string which contains a whole config, or an arrayref
+                          containing the whole config line by line.
     -AllowMultiOptions  - if the value is "no", then multiple
                           identical options are disallowed.
     -LowerCaseNames     - if true (1 or "yes") then all options found
@@ -495,6 +553,11 @@ still supported. Possible parameters are:
                           will be opened from within the location of the configfile,
                           if the configfile has an absolute pathname (i.e.
                           "/etc/main.conf").
+    -MergeDuplicateBlocks - the default behavior of Config::General is to create an
+                            array if some junk in a config appears more than once. If
+                            you turn this option on (set it to 1), then duplicate blocks,
+                            that means blocks and named blocks will be merged into
+                            a single one (see below for more details on this).
 
 
 =item NoMultiOptions()
@@ -743,6 +806,25 @@ then you would end up with a data structure like this:
 As you can see, the two identical blocks are stored in a hash which contains
 an array(-reference) of hashes.
 
+Under some rare conditions you might not want this behavior with blocks (and
+named blocks too). If you want to get one single hash with the contents of
+both identical blocks, then you need to turn the B<new()> parameter B<-MergeDuplicateBlocks>
+on (see above). The parsed structure of the example above would then look like
+this:
+
+ $VAR1 = {
+          'dir' => {
+                    'blah' => [
+                                  'user' => 'max',
+                                  'user' => 'hannes'
+                              ]
+                    }
+          };
+
+As you can see, there is only one hash "dir->{blah}" containing multiple
+"user" entries. As you can also see, turning on  B<-MergeDuplicateBlocks>
+does not affect scalar options (i.e. "option = value").
+
 If you don't want to allow more than one identical options, you may turn it off
 by setting the flag I<AllowMutliOptions> in the B<new()> method to "no".
 If turned off, Config::General will complain about multiple occuring options
@@ -929,7 +1011,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-1.24
+1.26
 
 =cut
 

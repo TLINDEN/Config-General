@@ -1,3 +1,9 @@
+ 1.26:   - added filehandle capability to -file.
+         - added -String parameter to new(), which allows
+           one to supply the whole config as a string.
+         - added -MergeDuplicateBlocks option, which causes
+	   duplicate blocks to be merged.
+
  1.25:   - include statements are now case insensitive
  	 - include statements may now also being used with
 	   indentation(leading and following whitespaces are

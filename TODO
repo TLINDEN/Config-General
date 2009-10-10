@@ -1,0 +1,5 @@
+
+
+ o need separate methods like ::String or ::File to fill
+   module parameters, and ::Parse and/or ::Read for manually
+   invocation of the parser
