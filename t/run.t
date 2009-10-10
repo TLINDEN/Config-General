@@ -8,7 +8,7 @@
 
 
 use Data::Dumper;
-use Test::More tests => 43;
+use Test::More tests => 45;
 #use Test::More qw(no_plan);
 
 ### 1
@@ -450,3 +450,10 @@ foreach my $pos (40 .. 43) {
   };
   ok($@ =~ /^Config::General/, "$pos: Structural error checks");
 }
+
+my $conf44;
+eval {
+   $conf44 = new Config::General(-String => [ 'foo bar' ]);
+};
+ok(! $@, "-String arrayref");
+is_deeply({ $conf44->getall }, { foo => 'bar' }, "-String arrayref contents");

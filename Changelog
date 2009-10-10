@@ -1,3 +1,18 @@
+ 2.38
+	- fixed rt.cpan.org#31529 variable inheritance failed
+	  with multiple named blocks.
+
+	- fixed rt.cpan.org#33447, regex to catch variable
+	  names were too strict, now - . + or : are allowed too.
+
+	- fixed rt.cpan.org#33385 and #32978 - using arrayrefs
+	  as param to -String didn't work anymore (sic)
+
+	- fixed rt.cpan.org#33216 - variable stack were not properly
+	  re-constructed for pre-existing variables if 
+	  -MergeDuplicateOptions is turned on.
+	  
+
  2.37
 	- "fixed" rt.cpan.org#30199 - check for invalid and
 	  unsupported structures, especially mixing blocks

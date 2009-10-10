@@ -8,7 +8,7 @@
 #
 
 package Config::General::Interpolated;
-$Config::General::Interpolated::VERSION = "2.09";
+$Config::General::Interpolated::VERSION = "2.10";
 
 use strict;
 use Carp;
@@ -47,7 +47,7 @@ sub _set_regex {
 		                #     but can't begin with a '\'
 		 \$		# dollar sign
 		 (\{)?		# $2: optional opening curly
-		 ([a-zA-Z_]\w*)	# $3: capturing variable name
+		 ([a-zA-Z0-9_\-\.:\+,]+) # $3: capturing variable name (fix of #33447)
 		 (
 		 ?(2)		# $4: if there's the opening curly...
 		 \}		#     ... match closing curly

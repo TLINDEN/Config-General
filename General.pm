@@ -5,7 +5,7 @@
 #          config values from a given file and
 #          return it as hash structure
 #
-# Copyright (c) 2000-2007 Thomas Linden <tlinden |AT| cpan.org>.
+# Copyright (c) 2000-2008 Thomas Linden <tlinden |AT| cpan.org>.
 # All Rights Reserved. Std. disclaimer applies.
 # Artificial License, same as perl itself. Have fun.
 #
@@ -32,7 +32,7 @@ use Carp::Heavy;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = 2.37;
+$Config::General::VERSION = 2.38;
 
 use vars  qw(@ISA @EXPORT_OK);
 use base qw(Exporter);
@@ -65,6 +65,7 @@ sub new {
 					false => '^(off|no|false|0)$',
 				       },
 	      DefaultConfig         => {},
+	      String                => '',
 	      level                 => 1,
 	      InterPolateVars       => 0,
 	      InterPolateEnv        => 0,
@@ -287,7 +288,8 @@ sub _prepare {
 
   # handle options which contains values we need (strings, hashrefs or the like)
   if (exists $conf{-String} ) {
-    if (ref(\$conf{-String}) eq 'SCALAR') {
+    #if (ref(\$conf{-String}) eq 'SCALAR') {
+    if (not ref $conf{-String}) {
       if ( $conf{-String}) {
 	$self->{StringContent} = $conf{-String};
       }
@@ -295,14 +297,15 @@ sub _prepare {
     }
     # re-implement arrayref support, removed after 2.22 as _read were
     # re-organized
-    elsif(ref(\$conf{-String}) eq 'ARRAY') {
-      $self->{StringContent} = join '\n', @{$conf{-String}};
+    # fixed bug#33385
+    elsif(ref($conf{-String}) eq 'ARRAY') {
+      $self->{StringContent} = join "\n", @{$conf{-String}};
     }
     else {
-      croak "Config::General: Parameter -String must be a SCALAR!\n";
+      croak "Config::General: Parameter -String must be a SCALAR or ARRAYREF!\n";
     }
+    delete $conf{-String};
   }
-
   if (exists $conf{-Tie}) {
     if ($conf{-Tie}) {
       $self->{Tie} = delete $conf{-Tie};
@@ -592,6 +595,7 @@ sub _read {
     }
 
     # remove the \ from all characters if BackslashEscape is turned on
+    # FIXME (rt.cpan.org#33218
     if ($this->{BackslashEscape}) {
       s/\\(.)/$1/g;
     }
@@ -770,6 +774,12 @@ sub _parse {
 	if (exists $config->{$option}) {
 	  if ($this->{MergeDuplicateOptions}) {
 	    $config->{$option} = $this->_parse_value($config, $option, $value);
+
+	    # bugfix rt.cpan.org#33216
+	    if ($this->{InterPolateVars}) {
+	      # save pair on local stack
+	      $config->{__stack}->{$option} = $config->{$option};
+	    }
 	  }
 	  else {
 	    if (! $this->{AllowMultiOptions} ) {
@@ -905,7 +915,16 @@ sub _parse {
 		else {
 		  push @ar, $savevalue;
 		}
-		push @ar, $this->_parse( $this->_hashref(), \@newcontent);
+
+		# fixes rt#31529
+		my $tmphash = $this->_hashref();
+		if ($this->{InterPolateVars}) {
+		  # inherit current __stack to new block
+		  $tmphash->{__stack} = $config->{__stack};
+		}
+
+		push @ar, $this->_parse( $tmphash, \@newcontent);
+
 		$config->{$block} = \@ar;
 	      }
 	    }
@@ -2390,7 +2409,7 @@ Thomas Linden <tlinden |AT| cpan.org>
 
 =head1 VERSION
 
-2.37
+2.38
 
 =cut
 
