@@ -1,0 +1,15 @@
+# variable interpolation test
+
+<vars>
+  base = /usr
+  uid  = 501
+</vars>
+
+<etc>
+  dir = $base/conf   # $base should not be interpolated
+  base = /usr/local # set $base to a new value in this scope
+  log  = ${base}/log/logfile  # use braces
+  <users>
+    home = $base/home/max # $base should be interpolated
+  </users>
+</etc>

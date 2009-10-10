@@ -1,3 +1,18 @@
+ 1.32    - *argl* ... I forgot Interpolated.pm, don't know how that
+           could happen, in 1.29 it was "lost". However - 
+	   I added it again now.
+	 - added patch by Peder Stray <peder@linpro.no> to
+	   the _store() method, which makes it possible to catch
+	   arrays of hashes to be stored correctly.
+	 - cleaned up the t/run.t testscript to reflect the
+	   changes (in fact I did not touch it since 1.18 or so).
+	 - added test number 16 to test variable interpolation
+	   using ::Interpolated in t/run.t.
+	 - fixed bug with new() parameter -AllowMultiOptions which
+	   generated a croak() if set to something other than "no".
+	 - changed Extended::save() to reflect the API change,
+	   it calls now save_file(). 
+
  1.31:   - i'm such a moron ... I forgot to do a make clean
            in 1.30, pf. So this is 1.31, which is clean.
 

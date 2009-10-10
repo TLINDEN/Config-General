@@ -6,13 +6,17 @@
 #
 # Under normal circumstances every test should succeed.
 
-BEGIN { $| = 1; print "1..15\n";}
+BEGIN { $| = 1; print "1..16\n";}
 use lib "blib/lib";
 use Config::General;
 use Config::General::Extended;
+use Config::General::Interpolated;
 use Data::Dumper;
 print "ok\n";
-print STDERR "\n1 .. ok # loading Config::General and Config::General::Extended\n";
+print STDERR " .. ok # loading:
+                                    Config::General
+   	            	            Config::General::Extended
+      		                    Config::General::Interpolated\n";
 
 foreach (2..7) {
   &p("t/cfg." . $_, $_);
@@ -32,7 +36,7 @@ my $b = \%copyhash;
 # one we got from cfg.8
 if (&comp($a,$b)) {
   print "ok\n";
-  print STDERR "8 .. ok # Writing Config Hash to disk and compare with original\n";
+  print STDERR " .. ok # Writing Config Hash to disk and compare with original\n";
 }
 else {
   print "8 not ok\n";
@@ -44,7 +48,7 @@ else {
 
 $conf = new Config::General::Extended("t/test.rc");
 print "ok\n";
-print STDERR "9 .. ok # Creating a new object from config file\n";
+print STDERR " .. ok # Creating a new object from config file\n";
 
 
 
@@ -55,28 +59,28 @@ my $conf2 = new Config::General::Extended(
                                           -AllowMultiOptions => "yes"
                                         );
 print "ok\n";
-print STDERR "10 .. ok # Creating a new object using the hash parameter way\n";
+print STDERR " .. ok # Creating a new object using the hash parameter way\n";
 
 
 
 
 my $domain = $conf->obj("domain");
 print "ok\n";
-print STDERR "11 .. ok # Creating a new object from a block\n";
+print STDERR " .. ok # Creating a new object from a block\n";
 
 
 
 
 my $addr = $domain->obj("bar.de");
 print "ok\n";
-print STDERR "12 .. ok # Creating a new object from a sub block\n";
+print STDERR " .. ok # Creating a new object from a sub block\n";
 
 
 
 
 my @keys = $conf->keys("domain");
 print "ok\n";
-print STDERR "13 .. ok # Getting values from the object\n";
+print STDERR " .. ok # Getting values from the object\n";
 
 
 
@@ -93,7 +97,7 @@ if ($conf->is_hash("domain")) {
   }
 }
 print "ok\n";
-print STDERR "14 .. ok # Using keys() and values() \n";
+print STDERR " .. ok # Using keys() and values() \n";
 
 # test AUTOLOAD methods
 my $conf3 = new Config::General::Extended( { name => "Moser", prename => "Hannes"} 
@@ -105,8 +109,23 @@ $conf3->prename("Max");
 $conf3->save("t/test.cfg");
 
 print "ok\n";
-print STDERR "15 .. ok # Using AUTOLOAD methods\n";
+print STDERR " .. ok # Using AUTOLOAD methods\n";
 
+
+
+
+# testing variable interpolation
+my $conf16 = new Config::General::Interpolated("t/cfg.16");
+my %h16 = $conf16->getall();
+
+if($h16{etc}->{log} eq "/usr/local/log/logfile") {
+   print "ok\n";
+   print STDERR " .. ok # Testing variable interpolation\n";
+}
+else {
+   print "16 not ok\n";
+   print STDERR "16 not ok\n";
+}
 
 
 
@@ -120,7 +139,7 @@ sub p {
   my $conf = new Config::General($cfg);
   my %hash = $conf->getall;
   print "ok\n";
-  print STDERR "$t .. ok $fst\n";
+  print STDERR " .. ok $fst\n";
 }
 
 sub comp {

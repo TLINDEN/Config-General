@@ -22,7 +22,7 @@ use vars qw(@ISA);
 use strict;
 
 
-$Config::General::Extended::VERSION = "1.2";
+$Config::General::Extended::VERSION = "1.3";
 
 
 sub obj {
@@ -172,8 +172,8 @@ sub save {
   if (!$file) {
     $file = $this->{configfile};
   }
-  open $fh, ">$file" or croak "Could not open $file!($!)\n";
-  $this->_store($fh, 0,%{$this->{config}});
+
+  $this->save_file($file);
 }
 
 
@@ -287,7 +287,9 @@ Writes the current config hash back to the harddisk.
 It takes an optional argument: B<filename>. If you omit a filename, save() will
 use the filename configured by the method B<configfile()> or B<new()> (see below).
 
-
+B<Important>: the method save() is now superseded by B<save_file()> and B<save_string()>.
+Refer to L<Config::General> for details. You can use these new methods to save
+a config either to a string or to a file.
 
 =item configfile('filename')
 
@@ -474,7 +476,7 @@ values under the given key will be overwritten.
 
 =head1 COPYRIGHT
 
-Copyright (c) 2000-2001 Thomas Linden
+Copyright (c) 2000-2002 Thomas Linden
 
 This library is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
@@ -492,7 +494,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-1.1
+1.3
 
 =cut
 

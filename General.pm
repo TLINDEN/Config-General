@@ -18,7 +18,7 @@ use strict;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = "1.30";
+$Config::General::VERSION = "1.32";
 
 use vars  qw(@ISA @EXPORT);
 @ISA    = qw(Exporter);
@@ -46,6 +46,9 @@ sub new {
       if ($conf{-AllowMultiOptions} =~ /^no$/) {
 	$self->{NoMultiOptions} = 1;
 	delete $conf{-AllowMultiOptions};
+      }
+      else {
+        delete $conf{-AllowMultiOptions};
       }
     }
     if (exists $conf{-String} ) {
@@ -501,7 +504,7 @@ sub save {
   if ( (@two && $one) && ( (scalar @two) % 2 == 0) ) {
     # @two seems to be a hash
     my %h = @two;
-    $this->Save($one, \%h);
+    $this->save_file($one, \%h);
   }
   else {
     croak "The save() method is deprecated. Use the new save_file() method instead!";
@@ -577,8 +580,17 @@ sub _store {
   foreach my $entry (sort keys %config) {
     if (ref($config{$entry}) eq "ARRAY") {
       foreach my $line (@{$config{$entry}}) {
-	$line =~ s/#/\\#/g;
-	$config_string .= $indent . $entry . "   " . $line . "\n";
+        # patch submitted by Peder Stray <peder@linpro.no> to catch
+        # arrays of hashes.
+        if (ref($line) eq "HASH") {                                                               
+          $config_string .= $indent . "<" . $entry . ">\n";                                        
+          $config_string .= $this->_store($level + 1, %{$line});
+          $config_string .= $indent . "</" . $entry . ">\n";                                      
+        }                                                                                         
+        else {                                                                                     
+          $line =~ s/#/\\#/g;                                                                      
+          $config_string .= $indent . $entry . "   " . $line . "\n";                               
+        } 
       }
     }
     elsif (ref($config{$entry}) eq "HASH") {
@@ -1425,7 +1437,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-1.30
+1.32
 
 =cut
 
