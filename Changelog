@@ -1,6 +1,38 @@
+ 2.31
+	 - applied patches by Jason Rhinelander <jagerman@jagerman.com>:
+	  	o bugfix: multiple levels if include files didn't
+		  work properly.
+
+		o new option -IncludeDirectories, which allows
+		  to include all files of a directory. The directory
+		  must be specified by -ConfigFile as usual.
+
+		o new option -IncludeGlob, which allows to
+		  use globs (wildcards) to include multiple files.
+
+		o -ConfigPath can be speciefied using a single
+		  scalar value instead of an array if there is only
+		  one path.
+
+		o bugfix: quotes from quoted block names were
+		  not removed properly.
+
+		o fixes and updates for tests (make test) for
+		  the above patches.
+	   
+	   Thanks a lot Jason.
+
+	 - fixed number of tests in run.t
+
+	 - applied suggestion by Eric Kisiel <eric.kisiel@adelphia.com>:
+	   ::Extended::keys() returns an empty hash if the
+	   referring object is not hash.
+
+	 - fixed bug #14770, "Use of uninitialized value.." during
+	   environment variable interpolation.
+
+
  2.30
-	 - fixed rt.cpan.org bug #7957, added ·
-	
 	 - applied patch by Branislav Zahradnik
 	   <brano@blueorange.sk> which adds -InterPolateEnv.
 	   This allows to use environment variables too. It

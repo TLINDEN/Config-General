@@ -6,7 +6,7 @@
 #
 # Under normal circumstances every test should succeed.
 
-BEGIN { $| = 1; print "1..22\n";}
+BEGIN { $| = 1; print "1..24\n";}
 use lib "blib/lib";
 use Config::General;
 use Data::Dumper;
@@ -257,10 +257,12 @@ my $conf22 = Config::General->new(
 
 my %h22 = $conf22->getall;
 my %expected_h22 = (
-    'sub3_seen' => 'yup',
-    'sub2_seen' => 'yup',
-    'sub1_seen' => 'yup',
-    'fruit'     => 'mango',
+    'sub3_seen'  => 'yup',
+    'sub2_seen'  => 'yup',
+    'sub2b_seen' => 'yup',
+    'sub1_seen'  => 'yup',
+    'sub1b_seen' => 'yup',
+    'fruit'      => 'mango',
 );
 
 if (&comp(\%h22, \%expected_h22)) {
@@ -272,6 +274,100 @@ else {
   print STDERR "22 not ok\n";
 }
 pause;
+
+# Testing IncludeDirectories option
+
+my $conf23 = Config::General->new(
+  -String => "<<include t/sub1>>",
+  -IncludeDirectories => 1
+);
+
+my %h23 = $conf23->getall;
+my %expected_h23 = (
+  fruit => 'mango',
+  sub1_seen => 'yup',
+  sub1b_seen => 'yup',
+  test => 'value',
+  test2 => 'value2',
+  test3 => 'value3'
+);
+
+if (&comp(\%h23, \%expected_h23)) {
+  print "ok\n";
+  print STDERR " .. ok # including a directory with -IncludeDirectories\n";
+}
+else {
+  print "23 not ok\n";
+  print STDERR "23 not ok\n";
+}
+pause;
+
+
+# Testing IncludeGlob option
+
+my $conf24 = Config::General->new(
+  -String => "<<include t/sub1/cfg.sub[123]{c,d,e}>>",
+  -IncludeGlob => 1
+);
+
+my %h24 = $conf24->getall;
+my %expected_h24 = (
+  test => 'value',
+  test2 => 'value2',
+  test3 => 'value3'
+);
+
+if (&comp(\%h24, \%expected_h24)) {
+  print "ok\n";
+  print STDERR " .. ok # including multiple files via glob pattern with -IncludeGlob\n";
+}
+else {
+  print "24 not ok\n";
+  print STDERR "24 not ok\n";
+}
+pause;
+
+
+# Testing block and block name quoting
+
+my $conf25 = Config::General->new(
+  -String => <<TEST,
+<block "/">
+  opt1 val1
+</block>
+<"block2 /">
+  opt2 val2
+</"block2 /">
+<"block 3" "/">
+  opt3 val3
+</"block 3">
+<block4 />
+  opt4 val4
+</block4>
+TEST
+  -SlashIsDirectory => 1
+);
+my %h25 = $conf25->getall;
+
+
+
+my %expected_h25 = (
+  block => { '/' => { opt1 => 'val1' } },
+  'block2 /' => { opt2 => 'val2' },
+  'block 3' => { '/' => { opt3 => 'val3' } },
+  block4 => { '/' => { opt4 => 'val4' } }
+);
+
+if (&comp(\%h25, \%expected_h25)) {
+  print "ok\n";
+  print STDERR " .. ok # block and block name quoting\n";
+}
+else {
+  print "25 not ok\n";
+  print STDERR "25 not ok\n";
+}
+pause;
+
 
 
 
@@ -293,9 +389,11 @@ sub p {
 
 sub comp {
   my($a, $b) = @_;
-  foreach my $key (keys %{$a}) {
+  my %keys = map { $_ => 1 } keys %$a, keys %$b;
+  foreach my $key (keys %keys) {
+    return 0 unless exists $a->{$key} and exists $b->{$key};
     if(ref($a->{$key}) eq "HASH") {
-       &comp($a->{$key},$b->{$key});
+       return 0 unless &comp($a->{$key},$b->{$key});
        next;
     }
     elsif(ref($a->{$key}) eq "ARRAY") {

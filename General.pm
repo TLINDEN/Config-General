@@ -5,7 +5,7 @@
 #          config values from a given file and
 #          return it as hash structure
 #
-# Copyright (c) 2000-2005 Thomas Linden <tom@daemon.de>.
+# Copyright (c) 2000-2006 Thomas Linden <tom@daemon.de>.
 # All Rights Reserved. Std. disclaimer applies.
 # Artificial License, same as perl itself. Have fun.
 #
@@ -14,6 +14,7 @@ package Config::General;
 
 use FileHandle;
 use File::Spec::Functions qw(splitpath file_name_is_absolute catfile catpath);
+use File::Glob qw/:glob/;
 use strict;
 
 # on debian with perl > 5.8.4 croak() doesn't work anymore without this.
@@ -26,7 +27,7 @@ use Carp::Heavy;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = "2.30";
+$Config::General::VERSION = "2.31";
 
 use vars  qw(@ISA @EXPORT);
 @ISA    = qw(Exporter);
@@ -52,6 +53,8 @@ sub new {
 
 	      UseApacheInclude      => 0,
 	      IncludeRelative       => 0,
+	      IncludeDirectories    => 0,
+	      IncludeGlob           => 0,
 
 	      AutoLaunder           => 0,
 
@@ -111,12 +114,15 @@ sub new {
     $self->{ConfigFile} = delete $conf{-file} if(exists $conf{-file});
     $self->{ConfigHash} = delete $conf{-hash} if(exists $conf{-hash});
 
-    # store search path for relative configs, if any
-    $self->{ConfigPath} = delete $conf{-ConfigPath} if(exists $conf{-ConfigPath});
-
     # store input, file, handle, or array
     $self->{ConfigFile} = delete $conf{-ConfigFile} if(exists $conf{-ConfigFile});
     $self->{ConfigHash} = delete $conf{-ConfigHash} if(exists $conf{-ConfigHash});
+
+    # store search path for relative configs, if any
+    if (exists $conf{-ConfigPath}) {
+      my $configpath = delete $conf{-ConfigPath};
+      $self->{ConfigPath} = ref $configpath eq 'ARRAY' ? $configpath : [$configpath];
+    }
 
     # handle options which contains values we are needing (strings, hashrefs or the like)
     if (exists $conf{-String} ) {
@@ -325,18 +331,42 @@ sub files {
 
 sub _open {
   #
-  # open the config file
+  # open the config file, or expand a directory or glob
   #
   my($this, $configfile) = @_;
   my $fh = new FileHandle;
 
-  if( ! -e $configfile && defined($this->{ConfigPath}) ) {
-    # try to find the file within ConfigPath
-    foreach my $dir (@{$this->{ConfigPath}}) {
-      if( -e catfile($dir, $configfile) ) {
-	$configfile = catfile($dir, $configfile);
-	last; # found it
-      };
+  if ($this->{IncludeGlob} and $configfile =~ /[*?\[\{\\]/) {
+    # Something like: *.conf (or maybe dir/*.conf) was included; expand it and
+    # pass each expansion through this method again.
+    my @include = grep -f, bsd_glob($configfile, GLOB_BRACE | GLOB_QUOTE);
+    if (@include == 1) {
+      $configfile = $include[0];
+    }
+    else { # Multiple results or no expansion results (which is fine, include foo/* shouldn't fail if there isn't anything matching)
+      local $this->{IncludeGlob};
+      for (@include) {
+	$this->_open($_);
+      }
+      return;
+    }
+  }
+
+  if (!-e $configfile) {
+    my $found;
+    if (defined($this->{ConfigPath})) {
+      # try to find the file within ConfigPath
+      foreach my $dir (@{$this->{ConfigPath}}) {
+	if( -e catfile($dir, $configfile) ) {
+	  $configfile = catfile($dir, $configfile);
+	  $found = 1;
+	  last; # found it
+	}
+      }
+    }
+    if (!$found) {
+      my $path_message = defined $this->{ConfigPath} ? ' within ConfigPath: ' . join('.', @{$this->{ConfigPath}}) : '';
+      croak qq{The file "$configfile" does not exist$path_message!};
     }
   }
 
@@ -346,7 +376,22 @@ sub _open {
     $/ = "\n";
   }
 
-  if (-e $configfile) {
+  if (-d $configfile and $this->{IncludeDirectories}) {
+    # A directory was included; include all the files inside that directory in ASCII order
+    local *INCLUDEDIR;
+    opendir INCLUDEDIR, $configfile or croak "Could not open directory $configfile!($!)\n";
+    my @files = sort grep -f "$configfile/$_", readdir INCLUDEDIR;
+    closedir INCLUDEDIR;
+    local $this->{CurrentConfigFilePath} = $configfile;
+    for (@files) {
+      unless ($this->{files}->{"$configfile/$_"}) {
+	open $fh, "<$configfile/$_" or croak "Could not open $configfile/$_!($!)\n";
+	$this->{files}->{"$configfile/$_"} = 1;
+	$this->_read($fh);
+      }
+    }
+  }
+  elsif (-e _) {
     if (exists $this->{files}->{$configfile} ) {
       # do not read the same file twice, just return
       # FIXME: should we croak here, when some "debugging" is enabled?
@@ -357,19 +402,10 @@ sub _open {
 
       $this->{files}->{$configfile}    = 1;
 
-      my ($volume, $path, undef)       = splitpath($configfile);
-      $this->{'CurrentConfigFilePath'} = catpath($volume, $path, '');
+      my ($volume, $path, undef)           = splitpath($configfile);
+      local $this->{CurrentConfigFilePath} = catpath($volume, $path, '');
 
       $this->_read($fh);
-      undef $this->{'CurrentConfigFilePath'};
-    }
-  }
-  else {
-    if (defined $this->{ConfigPath}) {
-      croak "The file \"$configfile\" does not exist within ConfigPath: " . join(":", @{$this->{ConfigPath}}) . "!\n";
-    }
-    else {
-      croak "The file \"$configfile\" does not exist!\n";
     }
   }
 }
@@ -583,7 +619,7 @@ sub _parse {
   # parse the contents of the file
   #
   my($this, $config, $content) = @_;
-  my(@newcontent, $block, $blockname, $grab, $chunk,$block_level);
+  my(@newcontent, $block, $blockname, $chunk,$block_level);
   local $_;
   my $indichar = chr(182);  # ¶, inserted by _open, our here-doc indicator
 
@@ -620,14 +656,15 @@ sub _parse {
     if (! defined $block) {                                # not inside a block @ the moment
       if (/^<([^\/]+?.*?)>$/) {                            # look if it is a block
 	$block = $1;                                       # store block name
-	if ($block =~ /^"/ && $block =~ /"$/) {
+	if ($block =~ /^"([^"]+)"$/) {
 	  # quoted block, unquote it and do not split
 	  $block =~ s/"//g;
 	}
 	else {
-	  ($grab, $blockname) = split /\s\s*/, $block, 2;    # is it a named block? if yes, store the name separately
-	  if ($blockname) {
-	    $block = $grab;
+	  # If it is a named block store the name separately; allow the block and name to each be quoted
+	  if ($block =~ /^(?:"([^"]+)"|(\S+))(?:\s+(?:"([^"]+)"|(.*)))?$/) {
+	    $block = $1 || $2;
+	    $blockname = $3 || $4;
 	  }
 	}
 	if ($this->{InterPolateVars}) {
@@ -1252,6 +1289,22 @@ will search within B<-ConfigPath> for the file. See the description of B<-Config
 for more details.
 
 
+=item B<-IncludeDirectories>
+
+If set to a true value, you may specify include a directory, in which case all
+files inside the directory will be loaded in ASCII order.  Directory includes
+will not recurse into subdirectories.  This is comparable to including a
+directory in Apache-style config files.
+
+
+=item B<-IncludeGlob>
+
+If set to a true value, you may specify a glob pattern for an include to
+include all matching files (e.g. <<include conf.d/*.conf>>).  Also note that as
+with standard file patterns, * will not match dot-files, so <<include dir/*>>
+is often more desirable than including a directory with B<-IncludeDirectories>.
+
+
 =item B<-ConfigPath>
 
 As mentioned above, you can use this variable to specify a search path for relative
@@ -1259,7 +1312,8 @@ config files which have to be included. Config::General will search within this
 path for the file if it cannot find the file at the location relative to the
 current config file.
 
-You must specify the path as an array ref. For example:
+To provide multiple search paths you can specify an array reference for the
+path.  For example:
 
  @path = qw(/usr/lib/perl /nfs/apps/lib /home/lib);
  ..
@@ -2119,7 +2173,7 @@ I recommend you to read the following documentations, which are supplied with pe
 
 =head1 COPYRIGHT
 
-Copyright (c) 2000-2005 Thomas Linden
+Copyright (c) 2000-2006 Thomas Linden
 
 This library is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
@@ -2136,7 +2190,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-2.30
+2.31
 
 =cut
 

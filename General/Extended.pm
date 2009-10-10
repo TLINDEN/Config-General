@@ -1,7 +1,7 @@
 #
 # Config::General::Extended - special Class based on Config::General
 #
-# Copyright (c) 2000-2005 Thomas Linden <tom@daemon.de>.
+# Copyright (c) 2000-2006 Thomas Linden <tom@daemon.de>.
 # All Rights Reserved. Std. disclaimer applies.
 # Artificial License, same as perl itself. Have fun.
 #
@@ -23,7 +23,7 @@ use vars qw(@ISA @EXPORT);
 use strict;
 
 
-$Config::General::Extended::VERSION = "2.01";
+$Config::General::Extended::VERSION = "2.02";
 
 
 sub new {
@@ -225,7 +225,12 @@ sub keys {
   #
   my($this, $key) = @_;
   if (!$key) {
-    return map { $_ } keys %{$this->{config}};
+    if (ref($this->{config}) eq "HASH") {
+      return map { $_ } keys %{$this->{config}};
+    }
+    else {
+      return ();
+    }
   }
   elsif (exists $this->{config}->{$key} && ref($this->{config}->{$key}) eq "HASH") {
     return map { $_ } keys %{$this->{config}->{$key}};
@@ -571,7 +576,7 @@ values under the given key will be overwritten.
 
 =head1 COPYRIGHT
 
-Copyright (c) 2000-2005 Thomas Linden
+Copyright (c) 2000-2006 Thomas Linden
 
 This library is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
@@ -589,7 +594,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-2.01
+2.02
 
 =cut
 

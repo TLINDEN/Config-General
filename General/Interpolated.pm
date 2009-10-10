@@ -2,13 +2,13 @@
 # Config::General::Interpolated - special Class based on Config::General
 #
 # Copyright (c) 2001 by Wei-Hon Chen <plasmaball@pchome.com.tw>.
-# Copyright (c) 2000-2005 by Thomas Linden <tom@daemon.de>.
+# Copyright (c) 2000-2006 by Thomas Linden <tom@daemon.de>.
 # All Rights Reserved. Std. disclaimer applies.
 # Artificial License, same as perl itself. Have fun.
 #
 
 package Config::General::Interpolated;
-$Config::General::Interpolated::VERSION = "2.06";
+$Config::General::Interpolated::VERSION = "2.07";
 
 use strict;
 use Carp;
@@ -92,6 +92,9 @@ sub _interpolate  {
     elsif ($this->{InterPolateEnv}) {
       # may lead to vulnerabilities, by default flag turned off
       $con . $ENV{$var};
+      if (defined($ENV{$var})) {
+	$con . $ENV{$var};
+      }
     }
     else {
       if ($this->{StrictVars}) {
@@ -294,7 +297,7 @@ L<Config::General>
 =head1 COPYRIGHT
 
 Copyright 2001 by Wei-Hon Chen E<lt>plasmaball@pchome.com.twE<gt>.
-Copyright 2002-2004 by Thomas Linden <tom@daemon.de>.
+Copyright 2002-2006 by Thomas Linden <tom@daemon.de>.
 
 This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
@@ -303,7 +306,7 @@ See L<http://www.perl.com/perl/misc/Artistic.html>
 
 =head1 VERSION
 
-2.06
+2.07
 
 =cut
 
