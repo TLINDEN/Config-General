@@ -1,10 +1,7 @@
 General/Extended.pm
 General/Interpolated.pm
-t/sub1/sub2/sub3/cfg.sub3.orig
 t/sub1/sub2/sub3/cfg.sub3
-t/sub1/sub2/cfg.sub2.orig
 t/sub1/sub2/cfg.sub2
-t/sub1/sub2/cfg.sub2b.orig
 t/sub1/sub2/cfg.sub2b
 t/sub1/cfg.sub1
 t/sub1/cfg.sub1b
@@ -26,8 +23,10 @@ t/cfg.20.a
 t/cfg.20.b
 t/cfg.20.c
 t/run.t
-t/test.rc.out
 t/cfg.34
+t/included.conf
+t/dual-include.conf
+t/apache-include.conf
 MANIFEST
 example.cfg
 Makefile.PL

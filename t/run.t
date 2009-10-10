@@ -8,7 +8,7 @@
 
 
 use Data::Dumper;
-use Test::More tests => 35;
+use Test::More tests => 38;
 #use Test::More qw(no_plan);
 
 ### 1
@@ -394,3 +394,32 @@ my %expect35 = (
 		'var2' => 'beta'
 	      );
 is_deeply(\%conf35, \%expect35, "Using -SplitPolicy and custom -SplitDelimiter");
+
+
+
+### Include both
+my $conf36 = Config::General->new( -ConfigFile => "t/dual-include.conf", 
+                                 -IncludeAgain => 1 );
+my %C36 = $conf36->getall;
+is_deeply( \%C36, { bit => { one => { honk=>'bonk' }, 
+                           two => { honk=>'bonk' } 
+                }        }, "Included twice" );
+                        
+
+### Include once
+diag "\nPlease ignore the following message about IncludeAgain";
+my $conf37 = Config::General->new( "t/dual-include.conf" );
+my %C37 = $conf37->getall;
+is_deeply( \%C37, { bit => { one => { honk=>'bonk' }, 
+                           two => {} 
+                }        }, "Included once-only" );
+
+
+### apache-style Include 
+my $conf38 = Config::General->new( -ConfigFile => "t/apache-include.conf", 
+                              -IncludeAgain => 1,
+                              -UseApacheInclude => 1 );
+my %C38 = $conf38->getall;
+is_deeply( \%C38, { bit => { one => { honk=>'bonk' }, 
+                           two => { honk=>'bonk' } 
+                }        }, "Apache-style include" );

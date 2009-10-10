@@ -32,7 +32,7 @@ use Carp::Heavy;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = 2.33;
+$Config::General::VERSION = 2.34;
 
 use vars  qw(@ISA @EXPORT_OK);
 use base qw(Exporter);
@@ -57,6 +57,7 @@ sub new {
 	      IncludeRelative       => 0,
 	      IncludeDirectories    => 0,
 	      IncludeGlob           => 0,
+              IncludeAgain          => 0,
 	      AutoLaunder           => 0,
 	      AutoTrue              => 0,
 	      AutoTrueFlags         => {
@@ -292,6 +293,11 @@ sub _prepare {
       }
       delete $conf{-String};
     }
+    # re-implement arrayref support, removed after 2.22 as _read were
+    # re-organized
+    elsif(ref(\$conf{-String}) eq 'ARRAY') {
+      $self->{StringContent} = join '\n', @{$conf{-String}};
+    }
     else {
       croak "Parameter -String must be a SCALAR!\n";
     }
@@ -387,8 +393,16 @@ sub _open {
   #
   # open the config file, or expand a directory or glob
   #
-  my($this, $configfile) = @_;
-  my $fh;
+  my($this, $basefile, $basepath) = @_;
+  my($fh, $configfile);
+
+  if($basepath) {
+    # if this doesn't work we can still try later the global config path to use
+    $configfile = catfile($basepath, $basefile);
+  }
+  else {
+    $configfile = $basefile;
+  }
 
   if ($this->{IncludeGlob} and $configfile =~ /[*?\[\{\\]/) {
     # Something like: *.conf (or maybe dir/*.conf) was included; expand it and
@@ -413,8 +427,8 @@ sub _open {
     if (defined $this->{ConfigPath}) {
       # try to find the file within ConfigPath
       foreach my $dir (@{$this->{ConfigPath}}) {
-	if( -e catfile($dir, $configfile) ) {
-	  $configfile = catfile($dir, $configfile);
+	if( -e catfile($dir, $basefile) ) {
+	  $configfile = catfile($dir, $basefile);
 	  $found = 1;
 	  last; # found it
 	}
@@ -422,7 +436,7 @@ sub _open {
     }
     if (!$found) {
       my $path_message = defined $this->{ConfigPath} ? q( within ConfigPath: ) . join(q(.), @{$this->{ConfigPath}}) : q();
-      croak qq{The file "$configfile" does not exist$path_message!};
+      croak qq{The file "$basefile" does not exist$path_message!};
     }
   }
 
@@ -436,21 +450,26 @@ sub _open {
     # A directory was included; include all the files inside that directory in ASCII order
     local *INCLUDEDIR;
     opendir INCLUDEDIR, $configfile or croak "Could not open directory $configfile!($!)\n";
-    my @files = sort grep { -f "$configfile/$_" } "$configfile/$_", readdir INCLUDEDIR;
+    my @files = sort grep { -f catfile($configfile, $_) } catfile($configfile, $_), readdir INCLUDEDIR;
     closedir INCLUDEDIR;
     local $this->{CurrentConfigFilePath} = $configfile;
     for (@files) {
-      if (! $this->{files}->{"$configfile/$_"}) {
-	$fh = IO::File->new( "$configfile/$_", 'r') or croak "Could not open $configfile/$_!($!)\n";
-	$this->{files}->{"$configfile/$_"} = 1;
+      my $file = catfile($configfile, $_);
+      if (! exists $this->{files}->{$file} or $this->{IncludeAgain} ) {
+        # support re-read if used urged us to do so, otherwise ignore the file
+	$fh = IO::File->new( $file, 'r') or croak "Could not open $file!($!)\n";
+	$this->{files}->{"$file"} = 1;
 	$this->_read($fh);
+      }
+      else {
+        warn "File $file already loaded.  Use -IncludeAgain to load it again.\n";
       }
     }
   }
   elsif (-e _) {
-    if (exists $this->{files}->{$configfile} ) {
+    if (exists $this->{files}->{$configfile} and not $this->{IncludeAgain}) {
       # do not read the same file twice, just return
-      # FIXME: should we croak here, when some "debugging" is enabled?
+      warn "File $configfile already loaded.  Use -IncludeAgain to load it again.\n";
       return;
     }
     else {
@@ -651,7 +670,7 @@ sub _read {
 	$incl_file = $1;
 	if ( $this->{IncludeRelative} && $path && !file_name_is_absolute($incl_file) ) {
 	  # include the file from within location of $this->{configfile}
-	  $this->_open( catfile($path, $incl_file) );
+	  $this->_open( $incl_file, $path );
 	}
 	else {
 	  # include the file from within pwd, or absolute
@@ -726,6 +745,11 @@ sub _parse {
 	  }
 	}
 	if ($this->{InterPolateVars}) {
+          # Clear everything from the next level
+          # rt:27225
+          if (defined $this->{stack} and defined $this->{stack}->{$this->{level} + 1}) {
+            $this->{stack}->{$this->{level} + 1} = {};
+          }
 	  # interpolate block(name), add "<" and ">" to the key, because
 	  # it is sure that such keys does not exist otherwise.
 	  $block     = $this->_interpolate("<$block>", $block);
@@ -1376,6 +1400,19 @@ If set to a true value, you may specify a glob pattern for an include to
 include all matching files (e.g. <<include conf.d/*.conf>>).  Also note that as
 with standard file patterns, * will not match dot-files, so <<include dir/*>>
 is often more desirable than including a directory with B<-IncludeDirectories>.
+
+
+=item B<-IncludeAgain>
+
+If set to a true value, you will be able to include a sub-configfile
+multiple times.  With the default, false, you will get a warning about
+duplicate includes and only the first include will succeed.
+
+Reincluding a configfile can be useful if it contains data that you want to
+be present in multiple places in the data tree.  See the example under
+L</INCLUDES>.
+
+Note, however, that there is currently no check for include recursion.
 
 
 =item B<-ConfigPath>
@@ -2164,6 +2201,34 @@ Include statements can be case insensitive (added in version 1.25).
 
 Include statements will be ignored within C-Comments and here-documents.
 
+By default, a config file will only be included the first time it is
+referenced.  If you wish to include a file in multiple places, set
+B</-IncludeAgain> to true. But be warned: this may lead to infinite loops,
+so make sure, you're not including the same file from within itself!
+
+Example:
+
+    # main.cfg
+    <object billy>
+        class=Some::Class
+        <printers>
+            include printers.cfg
+        </printers>
+        # ...
+    </object>
+    <object bob>
+        class=Another::Class
+        <printers>
+            include printers.cfg
+        </printers>
+        # ...
+    </object>
+
+Now C<printers.cfg> will be include in both the C<billy> and C<bob> objects.
+
+You will have to be careful to not recursively include a file.  Behaviour
+in this case is undefined.
+
 
 
 =head1 COMMENTS
@@ -2232,7 +2297,7 @@ allowed to the B<new()> method of the standard interface.
 
 Example:
 
- use Config::General;
+ use Config::General qw(ParseConfig);
  my %config = ParseConfig(-ConfigFile => "rcfile", -AutoTrue => 1);
 
 
@@ -2243,7 +2308,7 @@ to a hash structure.
 
 Example:
 
- use Config::General;
+ use Config::General qw(SaveConfig);
  ..
  SaveConfig("rcfile", \%some_hash);
 
@@ -2256,7 +2321,7 @@ method B<save_string()> does.
 
 Example:
 
- use Config::General;
+ use Config::General qw(ParseConfig SaveConfigString);
  my %config = ParseConfig(-ConfigFile => "rcfile");
  .. # change %config something
  my $content = SaveConfigString(\%config);

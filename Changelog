@@ -1,3 +1,28 @@
+ 2.34
+        - fixed rt.cpan.org#27271 - removed output file from
+          manifest.
+
+	- fixed rt.cpan.org#27225 - clear vars off the stack
+          if entering a new block, so old vars get not re-used.
+
+	- fixed rt.cpan.org#27110 - re-implemented support
+          for arrayref as -String parameter.
+
+	- fixed rt.cpan.org#24155 - relative include bug fixed.
+
+	- applied patch by GWYN, (see fixed rt.cpan.org#27622)
+ 	  which allows the same file included multiple times.
+	  there is no loop detection if turned on. new option
+	  introduced: -IncludeAgain => 1 (default turned off).
+
+	- added support for -IncludeAgain to directory include
+	  code too.
+
+	- the directory globbing code used slashes to join
+	  directory and file names. changed this to use catfile()
+	  instead.
+
+
  2.33
 	- fixed rt.cpan.org#26333 - just return $con if env var
 	  is undefined.
