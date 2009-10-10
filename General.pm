@@ -17,7 +17,7 @@ use strict;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = "2.08";
+$Config::General::VERSION = "2.09";
 
 use vars  qw(@ISA @EXPORT);
 @ISA    = qw(Exporter);
@@ -28,9 +28,7 @@ sub new {
   # create new Config::General object
   #
   my($this, @param ) = @_;
-  my($configfile);
   my $class = ref($this) || $this;
-
 
   # define default options
   my $self = {
@@ -81,12 +79,17 @@ sub new {
   if ($#param >= 1) {
     # use of the new hash interface!
     my %conf = @param;
-    $configfile = delete $conf{-file} if(exists $conf{-file}); # be backwards compatible
-    $configfile = delete $conf{-ConfigFile} if(exists $conf{-ConfigFile});
-    $configfile = delete $conf{-hash} if(exists $conf{-hash}); # be backwards compatible
-    $configfile = delete $conf{-ConfigHash} if(exists $conf{-ConfigHash});
 
+    # save the parameter list for ::Extended's new() calls
+    $self->{Params} = \%conf;
 
+    # be backwards compatible
+    $self->{ConfigFile} = delete $conf{-file} if(exists $conf{-file});
+    $self->{ConfigHash} = delete $conf{-hash} if(exists $conf{-hash});
+
+    # store input, file, handle, or array
+    $self->{ConfigFile} = delete $conf{-ConfigFile} if(exists $conf{-ConfigFile});
+    $self->{ConfigHash} = delete $conf{-ConfigHash} if(exists $conf{-ConfigHash});
 
     # handle options which contains values we are needing (strings, hashrefs or the like)
     if (exists $conf{-String} ) {
@@ -145,7 +148,7 @@ sub new {
   }
   elsif ($#param == 0) {
     # use of the old style
-    $configfile = $param[0];
+    $self->{ConfigFile} = $param[0];
   }
   else {
     # this happens if $#param == -1,1 thus no param was given to new!
@@ -183,22 +186,27 @@ sub new {
       $self->_read($self->{StringContent}, "SCALAR");
       $self->{config} = $self->_parse($self->{DefaultConfig}, $self->{content});
     }
-    elsif (ref($configfile) eq "HASH") {
-      # initialize with given hash
-      $self->{config} = $configfile;
-      $self->{parsed} = 1;
+    elsif (exists $self->{ConfigHash}) {
+      if (ref($self->{ConfigHash}) eq "HASH") {
+	# initialize with given hash
+	$self->{config} = $self->{ConfigHash};
+	$self->{parsed} = 1;
+      }
+      else {
+	croak "Parameter -ConfigHash must be a hash reference!\n";
+      }
     }
-    elsif (ref($configfile) eq "GLOB" || ref($configfile) eq "FileHandle") {
+    elsif (ref($self->{ConfigFile}) eq "GLOB" || ref($self->{ConfigFile}) eq "FileHandle") {
       # use the file the glob points to
-      $self->_read($configfile);
+      $self->_read($self->{ConfigFile});
       $self->{config} = $self->_parse($self->{DefaultConfig}, $self->{content});
     }
     else {
-      if ($configfile) {
+      if ($self->{ConfigFile}) {
 	# open the file and read the contents in
-	$self->{configfile} = $configfile;
+	$self->{configfile} = $self->{ConfigFile};
 	# look if is is an absolute path and save the basename if it is absolute
-	($self->{configpath}) = $configfile =~ /^(\/.*)\//;
+	($self->{configpath}) = $self->{ConfigFile} =~ /^(\/.*)\//;
 	$self->_open($self->{configfile});
 	# now, we parse immdediately, getall simply returns the whole hash
 	$self->{config} = $self->_parse($self->{DefaultConfig}, $self->{content});
@@ -317,7 +325,7 @@ sub _read {
 
     if (!$hierend) {                            # patch by "Manuel Valente" <manuel@ripe.net>:
       s/(?<!\\)#.+$//;                          # Remove comments
-      next if /^#/;                             # Remove lines beginning with "#"
+      next if /^\s*#/;                             # Remove lines beginning with "#"
       next if /^\s*$/;                          # Skip empty lines
       s/\\#/#/g;                                # remove the \ char in front of masked "#"
     }
@@ -1123,8 +1131,10 @@ access the parsed config. See L<Config::General::Extended> for more informations
 =item B<-StrictObjects>
 
 By default this is turned on, which causes Config::General to croak with an
-error if you try to access a non-existent key using the oop-way. If you turn
-B<-StrictObjects> off (by setting to 0 or "no") it will just return undef.
+error if you try to access a non-existent key using the oop-way (B<-ExtendedAcess
+enabled). If you turn B<-StrictObjects> off (by setting to 0 or "no") it will
+just return an empty object/hash/scalar. This is valid for OOP-access 8via AUTOLOAD
+and for the methods obj(), hash() and value().
 
 =item B<-SplitPolicy>
 
@@ -1697,7 +1707,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-2.08
+2.09
 
 =cut
 

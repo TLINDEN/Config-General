@@ -1,3 +1,23 @@
+ 2.09    - added bugfix in '#' comment parsing. If current state
+	   was within a block, then /^   #/ was not ignored as
+	   comment but instead added as variable. Reported by
+	   Lupe Christoph <lupe@lupe-christoph.de>
+
+	 - added -StrictObjects parameter support in the following
+	   ::Extended methods: hash() and value().
+
+	 - added better parameter checks in the ::Extended::obj()
+	   method. Its now no more possible to create a new (sub-)
+	   object from an undefined key or a key which does not
+	   point to a hash reference.
+
+	 - simplified storing of ConfigFile and ConfigHash in new()
+	   removed my variable $configfile.
+
+	 - the original parameter list will now be saved, which is
+	   required for ::Extended to create new objects with the
+	   same config as their parents.
+
  2.08    - added option -StrictVars, which causes Interpolate.pm to
 	   ignore undefined variables and replaces such occurences
 	   with the emppty string.

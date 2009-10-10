@@ -23,7 +23,7 @@ use vars qw(@ISA @EXPORT);
 use strict;
 
 
-$Config::General::Extended::VERSION = "1.8";
+$Config::General::Extended::VERSION = "1.9";
 
 
 sub new {
@@ -40,15 +40,21 @@ sub obj {
   #
   my($this, $key) = @_;
   if (exists $this->{config}->{$key}) {
-    if (!$this->{config}->{$key}) {
-      return $this->SUPER::new( -ExtendedAccess => 1, -ConfigHash => {} ); # empty object!
+    if (!$this->{config}->{$key} || ref($this->{config}->{$key}) ne "HASH") {
+      if ($this->{StrictObjects}) {
+	croak "key \"$key\" does not point to a hash reference!\n";
+      }
+      else {
+	# be cool, create an empty object!
+	return $this->SUPER::new( -ExtendedAccess => 1, -ConfigHash => {}, %{$this->{Params}} );
+      }
     }
     else {
-      return $this->SUPER::new( -ExtendedAccess => 1, -ConfigHash => $this->{config}->{$key} );
+      return $this->SUPER::new( -ExtendedAccess => 1, -ConfigHash => $this->{config}->{$key}, %{$this->{Params}} );
     }
   }
   else {
-    return $this->SUPER::new( -ExtendedAccess => 1, -ConfigHash => $this->{config} );
+    return $this->SUPER::new( -ExtendedAccess => 1, -ConfigHash => $this->{config}, %{$this->{Params}} );
   }
 }
 
@@ -63,7 +69,17 @@ sub value {
     $this->{config}->{$key} = $value;
   }
   else {
-    return $this->{config}->{$key} if(exists $this->{config}->{$key});
+    if (exists $this->{config}->{$key}) {
+      return $this->{config}->{$key};
+    }
+    else {
+      if ($this->{StrictObjects}) {
+	croak "Key \"$key\" does not exist within current object\n";
+      }
+      else {
+	return "";
+      }
+    }
   }
 }
 
@@ -74,7 +90,17 @@ sub hash {
   # as hash
   #
   my($this, $key) = @_;
-  return %{$this->{config}->{$key}} if(exists $this->{config}->{$key});
+  if (exists $this->{config}->{$key}) {
+    return %{$this->{config}->{$key}};
+  }
+  else {
+    if ($this->{StrictObjects}) {
+      croak "Key \"$key\" does not exist within current object\n";
+    }
+    else {
+      return ();
+    }
+  }
 }
 
 
@@ -84,7 +110,15 @@ sub array {
   # as array
   #
   my($this, $key) = @_;
-  return @{$this->{config}->{$key}} if(exists $this->{config}->{$key});
+  if (exists $this->{config}->{$key}) {
+    return @{$this->{config}->{$key}};
+  }
+  if ($this->{StrictObjects}) {
+      croak "Key \"$key\" does not exist within current object\n";
+    }
+  else {
+    return ();
+  }
 }
 
 
@@ -232,10 +266,10 @@ sub AUTOLOAD {
   }
   elsif (exists $this->{config}->{$key}) {
     if ($this->is_hash($key)) {
-      croak "\"$key\" points to a hash and cannot be automatically accessed\n";
+      croak "Key \"$key\" points to a hash and cannot be automatically accessed\n";
     }
     elsif ($this->is_array($key)) {
-      croak "\"$key\" points to an array and cannot be automatically accessed\n";
+      croak "Key \"$key\" points to an array and cannot be automatically accessed\n";
     }
     else {
       return $this->{config}->{$key};
@@ -243,11 +277,11 @@ sub AUTOLOAD {
   }
   else {
     if ($this->{StrictObjects}) {
-      croak "\"$key\" does not exist within current object\n";
+      croak "Key \"$key\" does not exist within current object\n";
     }
     else {
       # be cool
-      return undef;
+      return "";
     }
   }
 }
@@ -505,7 +539,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-1.8
+1.9
 
 =cut
 
