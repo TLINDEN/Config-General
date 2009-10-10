@@ -1,3 +1,33 @@
+ 2.39
+	- fixed rt.cpan.org#35122. This one was one of the most
+	  intriguing bugs I've ever observed in my own code. The
+	  internal temporary __stack hashref were copied from one
+	  subhash to another to enable inheritance of variables.
+	  However, the hashes were copied by reference, so once a
+	  value changed later, that value were overwritten because
+	  the __stack in question were just a reference. I introduced
+	  a simple function _copy() which copies the contents of
+	  the __stack by value, which solved the bug.
+	  Conclusion: beware of perl hash refs!
+
+	- fixed rt.cpan.org#36607, accept whitespaces in heredoc
+	  names if split delimiter is gues (equalsign or whitespace)
+
+	- fixed rt.cpan.org#34080 (typo)
+
+	- fixed rt.cpan.org#35766. Variables inside single quoted
+	  strings will no more interpolated (as the docu states).
+	  Also added test case for this.
+
+	- fixed bug rt.cpan.org#33766. Checking for defined not true
+	  in ::Extended::AUTOLOAD().
+
+	- added -UTF8 flag, which opens files in utf8 mode
+	  (suggested by KAORU, rt.cpan.org#35583)
+	  I decided not to add a test case for this, since perls
+	  utf8 support is not stable with all versions.
+
+
  2.38
 	- fixed rt.cpan.org#31529 variable inheritance failed
 	  with multiple named blocks.

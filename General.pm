@@ -32,7 +32,7 @@ use Carp::Heavy;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = 2.38;
+$Config::General::VERSION = 2.39;
 
 use vars  qw(@ISA @EXPORT_OK);
 use base qw(Exporter);
@@ -80,6 +80,7 @@ sub new {
 	      Tie                   => q(),      # could be set to a perl module for tie'ing new hashes
 	      parsed                => 0,       # internal state stuff for variable interpolation
 	      files                 => {},      # which files we have read, if any
+	      UTF8                  => 0
 	     };
 
   # create the class instance
@@ -367,7 +368,7 @@ sub _prepare {
     $self->{IncludeRelative}    = 1;
     $self->{IncludeDirectories} = 1;
     $self->{IncludeGlob}        = 1;
-    $self->{SpashIsDirectory}   = 1;
+    $self->{SlashIsDirectory}   = 1;
     $self->{SplitPolicy}        = 'whitespace';
     $self->{CComments}          = 0;
     $self->{BackslashEscape}    = 1;
@@ -460,7 +461,14 @@ sub _open {
       my $file = catfile($configfile, $_);
       if (! exists $this->{files}->{$file} or $this->{IncludeAgain} ) {
         # support re-read if used urged us to do so, otherwise ignore the file
-	$fh = IO::File->new( $file, 'r') or croak "Config::General: Could not open $file!($!)\n";
+	if ($this->{UTF8}) {
+	  $fh = new IO::File;
+	  open( $fh, "<:utf8", $file)
+	    or croak "Config::General: Could not open $file in UTF8 mode!($!)\n";
+	}
+	else {
+	  $fh = IO::File->new( $file, 'r') or croak "Config::General: Could not open $file!($!)\n";
+	}
 	$this->{files}->{"$file"} = 1;
 	$this->_read($fh);
       }
@@ -476,7 +484,15 @@ sub _open {
       return;
     }
     else {
-      $fh = IO::File->new( "$configfile", 'r') or croak "Config::General: Could not open $configfile!($!)\n";
+      if ($this->{UTF8}) {
+	$fh = new IO::File;
+	open( $fh, "<:utf8", $configfile)
+	  or croak "Config::General: Could not open $configfile in UTF8 mode!($!)\n";
+      }
+      else {
+	$fh = IO::File->new( "$configfile", 'r')
+	  or croak "Config::General: Could not open $configfile!($!)\n";
+      }
 
       $this->{files}->{$configfile}    = 1;
 
@@ -630,9 +646,16 @@ sub _read {
 
     # look for here-doc identifier
     if ($this->{SplitPolicy} eq 'guess') {
-      if (/^\s*(\S+?)(\s*=\s*|\s+)<<\s*(.+?)\s*$/) {
+      if (/^\s*([^=]+?)\s*=\s*<<\s*(.+?)\s*$/) {
+	# try equal sign (fix bug rt#36607)
 	$hier    = $1;  # the actual here-doc variable name
-	$hierend = $3;  # the here-doc identifier, i.e. "EOF"
+	$hierend = $2;  # the here-doc identifier, i.e. "EOF"
+	next;
+      }
+      elsif (/^\s*(\S+?)\s+<<\s*(.+?)\s*$/) {
+	# try whitespace
+	$hier    = $1;  # the actual here-doc variable name
+	$hierend = $2;  # the here-doc identifier, i.e. "EOF"
 	next;
       }
     }
@@ -837,7 +860,7 @@ sub _parse {
 
 	    if ($this->{InterPolateVars}) {
 	      # inherit current __stack to new block
-	      $config->{$block}->{__stack} = $config->{__stack};
+	      $config->{$block}->{__stack} = $this->_copy($config->{__stack});
 	    }
 	  }
 
@@ -881,7 +904,8 @@ sub _parse {
 
 	    if ($this->{InterPolateVars}) {
 	      # inherit current __stack to new block
-	      $tmphash->{__stack} = $config->{__stack};
+	      $tmphash->{__stack} = $this->_copy($config->{__stack});
+	      #$tmphash->{__stack} = $config->{$block}->{__stack};
 	    }
 
 	    $config->{$block}->{$blockname} = $this->_parse($tmphash, \@newcontent);
@@ -920,7 +944,7 @@ sub _parse {
 		my $tmphash = $this->_hashref();
 		if ($this->{InterPolateVars}) {
 		  # inherit current __stack to new block
-		  $tmphash->{__stack} = $config->{__stack};
+		  $tmphash->{__stack} = $this->_copy($config->{__stack});
 		}
 
 		push @ar, $this->_parse( $tmphash, \@newcontent);
@@ -935,7 +959,7 @@ sub _parse {
 
 	    if ($this->{InterPolateVars}) {
 	      # inherit current __stack to new block
-	      $tmphash->{__stack} = $config->{__stack};
+	      $tmphash->{__stack} = $this->_copy($config->{__stack});
 	    }
 
 	    $config->{$block} = $this->_parse($tmphash, \@newcontent);
@@ -947,7 +971,7 @@ sub _parse {
 	next;
       }
     }
-    else {                                                 # inside $block, just push onto new content stack
+    else { # inside $block, just push onto new content stack
       push @newcontent, $_;
     }
   }
@@ -957,6 +981,20 @@ sub _parse {
     croak "Config::General: Block \"<$block>\" has no EndBlock statement (level: $this->{level}, chunk $chunk)!\n";
   }
   return $config;
+}
+
+
+sub _copy {
+  #
+  # copy the contents of one hash into another
+  # to circumvent invalid references
+  # fixes rt.cpan.org bug #35122
+  my($this, $source) = @_;
+  my %hash = ();
+  foreach my $key (keys %{$source}) {
+    $hash{$key} = $source->{$key};
+  }
+  return \%hash;
 }
 
 
@@ -1054,8 +1092,15 @@ sub save_file {
     croak "Config::General: Filename is required!";
   }
   else {
-    $fh = IO::File->new( "$file", 'w') or croak "Config::General: Could not open $file!($!)\n";
-
+    if ($this->{UTF8}) {
+      $fh = new IO::File;
+      open($fh, ">:utf8", $file)
+	or croak "Config::General: Could not open $file in UTF8 mode!($!)\n";
+    }
+    else {
+      $fh = IO::File->new( "$file", 'w')
+	or croak "Config::General: Could not open $file!($!)\n";
+    }
     if (!$config) {
       if (exists $this->{config}) {
 	$config_string = $this->_store(0, %{$this->{config}});
@@ -1709,6 +1754,9 @@ character within configurations.
 
 By default it is turned off.
 
+Be carefull with this option, as it removes all backslashes after parsing.
+
+B<This option might be removed in future versions>.
 
 =item B<-SlashIsDirectory>
 
@@ -1768,7 +1816,7 @@ The following options will be set:
  IncludeRelative    = 1
  IncludeDirectories = 1
  IncludeGlob        = 1
- SpashIsDirectory   = 1
+ SlashIsDirectory   = 1
  SplitPolicy        = 'equalsign'
  CComments          = 0
  BackslashEscape    = 1
@@ -1778,6 +1826,11 @@ those options are doing.
 
 Beside setting some options it also turns off support for
 explicit empty blocks.
+
+=item B<-UTF8>
+
+If turned on, all files will be opened in utf8 mode. This may
+not work properly with older versions of perl.
 
 =back
 
@@ -2409,7 +2462,7 @@ Thomas Linden <tlinden |AT| cpan.org>
 
 =head1 VERSION
 
-2.38
+2.39
 
 =cut
 

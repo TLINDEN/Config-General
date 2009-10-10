@@ -1,7 +1,7 @@
 #
 # Config::General::Extended - special Class based on Config::General
 #
-# Copyright (c) 2000-2007 Thomas Linden <tlinden |AT| cpan.org>.
+# Copyright (c) 2000-2008 Thomas Linden <tlinden |AT| cpan.org>.
 # All Rights Reserved. Std. disclaimer applies.
 # Artificial License, same as perl itself. Have fun.
 #
@@ -23,7 +23,7 @@ use vars qw(@ISA @EXPORT);
 use strict;
 
 
-$Config::General::Extended::VERSION = "2.02";
+$Config::General::Extended::VERSION = "2.03";
 
 
 sub new {
@@ -294,7 +294,7 @@ sub AUTOLOAD {
   my $key = $Config::General::Extended::AUTOLOAD;  # get to know how we were called
   $key =~ s/.*:://; # remove package name!
 
-  if ($value) {
+  if (defined $value) {
     # just set $key to $value!
     $this->{config}->{$key} = $value;
   }
@@ -576,7 +576,7 @@ values under the given key will be overwritten.
 
 =head1 COPYRIGHT
 
-Copyright (c) 2000-2007 Thomas Linden
+Copyright (c) 2000-2008 Thomas Linden
 
 This library is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
@@ -593,7 +593,7 @@ Thomas Linden <tlinden |AT| cpan.org>
 
 =head1 VERSION
 
-2.02
+2.03
 
 =cut
 

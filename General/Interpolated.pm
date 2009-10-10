@@ -66,6 +66,17 @@ sub _interpolate  {
   #
   my ($this, $config, $key, $value) = @_;
 
+  # some dirty trick to circumvent single quoted vars to be interpolated
+  # we remove all quotes and replace them with unique random literals,
+  # which will be replaced after interpolation with the original quotes
+  # fixes bug rt#35766
+  my %quotes;
+  $value =~ s/(\'[^\']+?\')/
+    my $key = "QUOTE" . int(rand(1000)) . "QUOTE";
+    $quotes{ $key } = $1;
+    $key;
+  /gex;
+
   $value =~ s{$this->{regex}}{
     my $con = $1;
     my $var = $3;
@@ -93,6 +104,12 @@ sub _interpolate  {
       }
     }
   }egx;
+
+  # re-insert unaltered quotes
+  # fixes bug rt#35766
+  foreach my $quote (keys %quotes) {
+    $value =~ s/$quote/$quotes{$quote}/;
+  }
 
   return $value;
 };
@@ -170,6 +187,7 @@ sub _clean_stack {
   # recursively empty the variable stack
   #
   my ($this, $config) = @_;
+  #return $config; # DEBUG
   foreach my $key (keys %{$config}) {
     if ($key eq "__stack") {
       delete $config->{__stack};

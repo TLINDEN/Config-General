@@ -8,7 +8,7 @@
 
 
 use Data::Dumper;
-use Test::More tests => 45;
+use Test::More tests => 47;
 #use Test::More qw(no_plan);
 
 ### 1
@@ -457,3 +457,33 @@ eval {
 };
 ok(! $@, "-String arrayref");
 is_deeply({ $conf44->getall }, { foo => 'bar' }, "-String arrayref contents");
+
+
+
+# verifies bug rt#35122
+my $conf45 = new Config::General(-ConfigFile => "t/cfg.45", -InterPolateVars => 1, -StrictVars => 0);
+my %conf45 = $conf45->getall();
+my $expect45 = {
+		'block1' => {
+			     'param5' => 'value3',
+			     'param4' => 'value1',
+			     'param2' => 'value3'
+			    },
+		'block2' => {
+			     'param7' => 'value2',
+			     'param6' => 'value1'
+			    },
+		'param2' => 'value2',
+		'param1' => 'value1'
+	       };
+is_deeply($expect45, \%conf45, "Variable precedence");
+
+# verifies bug rt#35766
+my $conf46 = new Config::General(-ConfigFile => "t/cfg.46", -InterPolateVars => 1, -StrictVars => 0);
+my %conf46 = $conf46->getall();
+my $expect46 = {
+		 'blah' => 'blubber',
+		 'test' => 'bar \'variable $blah should be kept\' and \'$foo too\'',
+		 'foo' => 'bar'
+		};
+is_deeply($expect46, \%conf46, "Variables inside single quotes");
