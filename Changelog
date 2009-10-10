@@ -1,3 +1,13 @@
+ 2.14    - fixed bug reported by Francisco Olarte Sanz
+	   <folarte@peoplecall.com>, which caused _parse to
+	   ignore blocks with the name "0": 
+	   <0> .. </0>, because it checked just if $block (the name
+	   between < and >) is true, and from the perl point
+	   of view "0" is not. Changed it to check for defined.
+	   Normally I avoid using 'defined' but in this case
+	   it will not be possible that $block contains the
+	   empty string, so defined is ok here.
+
  2.13    - fixed bug reported by Steffen Schwigon <schwigon@webit.de>.
 	   the parser was still active inside a here-doc, which
 	   cause weird results if the here-doc contained

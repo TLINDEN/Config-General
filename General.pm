@@ -17,7 +17,7 @@ use strict;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = "2.13";
+$Config::General::VERSION = "2.14";
 
 use vars  qw(@ISA @EXPORT);
 @ISA    = qw(Exporter);
@@ -491,7 +491,7 @@ sub _parse {
       $value =~ s/^"//;                                    # remove leading and trailing "
       $value =~ s/"$//;
     }
-    if (!$block) {                                         # not inside a block @ the moment
+    if (! defined $block) {                                # not inside a block @ the moment
       if (/^<([^\/]+?.*?)>$/) {                            # look if it is a block
 	$this->{level} += 1;
 	$block = $1;                                       # store block name
@@ -1788,7 +1788,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-2.13
+2.14
 
 =cut
 

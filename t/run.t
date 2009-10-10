@@ -11,12 +11,15 @@ use lib "blib/lib";
 use Config::General;
 use Data::Dumper;
 
+sub pause;
+
 print "ok\n";
 print STDERR " .. ok # loading Config::General\n";
 
 
 foreach (2..7) {
   &p("t/cfg." . $_, $_);
+  pause;
 }
 
 my $conf = new Config::General("t/cfg.8");
@@ -33,13 +36,13 @@ my $b = \%copyhash;
 # one we got from cfg.8
 if (&comp($a,$b)) {
   print "ok\n";
-  print STDERR " .. ok # Writing Config Hash to disk and compare with original\n";
+  print STDERR " ... ok # Writing Config Hash to disk and compare with original\n";
 }
 else {
   print "8 not ok\n";
-  print STDERR "8 .. not ok\n";
+  print STDERR "8 ... not ok\n";
 }
-
+pause;
 
 ############## Extended Tests #################
 
@@ -47,8 +50,8 @@ $conf = new Config::General(
 			    -ExtendedAccess => 1,
 			    -ConfigFile     => "t/test.rc");
 print "ok\n";
-print STDERR " .. ok # Creating a new object from config file\n";
-
+print STDERR " ... ok # Creating a new object from config file\n";
+pause;
 
 
 
@@ -59,29 +62,29 @@ my $conf2 = new Config::General(
 				-AllowMultiOptions => "yes"
 			       );
 print "ok\n";
-print STDERR " .. ok # Creating a new object using the hash parameter way\n";
-
+print STDERR " ... ok # Creating a new object using the hash parameter way\n";
+pause;
 
 
 
 my $domain = $conf->obj("domain");
 print "ok\n";
 print STDERR " .. ok # Creating a new object from a block\n";
-
+pause;
 
 
 
 my $addr = $domain->obj("bar.de");
 print "ok\n";
 print STDERR " .. ok # Creating a new object from a sub block\n";
-
+pause;
 
 
 
 my @keys = $conf->keys("domain");
 print "ok\n";
 print STDERR " .. ok # Getting values from the object\n";
-
+pause;
 
 
 
@@ -98,7 +101,7 @@ if ($conf->is_hash("domain")) {
 }
 print "ok\n";
 print STDERR " .. ok # Using keys() and values() \n";
-
+pause;
 
 
 
@@ -115,7 +118,7 @@ $conf3->save_file("t/test.cfg");
 
 print "ok\n";
 print STDERR " .. ok # Using AUTOLOAD methods\n";
-
+pause;
 
 
 
@@ -130,7 +133,7 @@ else {
    print "16 not ok\n";
    print STDERR "16 not ok\n";
 }
-
+pause;
 
 
 # testing value pre-setting using a hash
@@ -149,6 +152,7 @@ else {
   print "17 not ok\n";
   print STDERR "17 not ok\n";
 }
+pause;
 
 
 # testing value pre-setting using a string
@@ -167,10 +171,10 @@ else {
   print "18 not ok\n";
   print STDERR "18 not ok\n";
 }
+pause;
 
 
-
-# testing various otion/value assignemnt notations
+# testing various otion/value assignment notations
 my $conf19 = new Config::General(-file => "t/cfg.19");
 my %h19 = $conf19->getall();
 my $works = 1;
@@ -181,13 +185,13 @@ foreach my $key (keys %h19) {
 }
 if ($works) {
   print "ok\n";
-  print STDERR " .. ok # Testing various otion/value assignemnt notations\n";
+  print STDERR " .. ok # Testing various otion/value assignment notations\n";
 }
 else {
   print "19 not ok\n";
   print STDERR "19 not ok\n";
 }
-
+pause;
 
 
 
@@ -203,7 +207,7 @@ sub p {
   my $conf = new Config::General($cfg);
   my %hash = $conf->getall;
   print "ok\n";
-  print STDERR " .. ok $fst\n";
+  print STDERR " ... ok $fst\n";
 }
 
 sub comp {
@@ -220,4 +224,11 @@ sub comp {
     return 0 if($a->{$key} ne $b->{$key});
   }
   return 1;
+}
+
+sub pause {
+  # we are pausing between tests
+  # so the output gets not confused
+  # by stderr/stdout "collisions"
+  select undef, undef, undef, 0.3;
 }
