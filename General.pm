@@ -32,7 +32,7 @@ use Carp::Heavy;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = 2.43;
+$Config::General::VERSION = 2.44;
 
 use vars  qw(@ISA @EXPORT_OK);
 use base qw(Exporter);
@@ -155,8 +155,7 @@ sub _process {
       croak "Config::General: Parameter -ConfigHash must be a hash reference!\n";
     }
   }
-#  elsif (ref($self->{ConfigFile}) eq 'GLOB' || ref($self->{ConfigFile}) eq 'FileHandle') {
-  elsif (ref($self->{ConfigFile})) {
+  elsif (ref($self->{ConfigFile}) eq 'GLOB' || ref($self->{ConfigFile}) eq 'FileHandle') {
     # use the file the glob points to
     $self->_read($self->{ConfigFile});
     $self->{config} = $self->_parse($self->{DefaultConfig}, $self->{content});
@@ -2532,7 +2531,7 @@ Thomas Linden <tlinden |AT| cpan.org>
 
 =head1 VERSION
 
-2.43
+2.44
 
 =cut
 

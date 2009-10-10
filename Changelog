@@ -1,4 +1,8 @@
- 2.43
+2.44
+	- fixed rt.cpan.org#49023 by rolling back change in 2.43
+	   in line 158, regarding GLOB support.
+	
+2.43
 	- fixed rt.cpan.org#40925, $indichar replaced by internal
 	  configuration variable EOFseparator, which contains
 	  a 256 bit SHA checksum of the date I fixed the bug.
