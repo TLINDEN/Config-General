@@ -16,28 +16,54 @@ package Config::General;
 
 use FileHandle;
 use strict;
+use Carp;
 
-
-$Config::General::VERSION = "1.17";
-
+$Config::General::VERSION = "1.18";
 
 sub new {
   #
-  # create new Config object
+  # create new Config::General object
   #
-  my($this, $configfile ) = @_;
+  my($this, @param ) = @_;
+  my($configfile);
   my $class = ref($this) || $this;
   my $self = {};
   bless($self,$class);
 
-  my(%config);
-  %config = ();
   $self->{level} = 1;
 
-  $self->{configfile} = $configfile;
+  if ($#param >= 1) {
+    # use of the new hash interface!
+    my %conf = @param;
+    $configfile = delete $conf{-file} if(exists $conf{-file});
+    $configfile = delete $conf{-hash} if(exists $conf{-hash});
+    if ($conf{-AllowMultiOptions} =~ /^no$/) {
+      $self->{NoMultiOptions} = 1;
+    }
+  }
+  elsif ($#param == 0) {
+    # use of the old style
+    $configfile = $param[0];
+  }
+  else {
+    # this happens if $#param == -1, thus no param was given to new!
+    $self->{config} = {};
+    return $self;
+  }
 
-  # open the file and read the contents in
-  $self->_open($self->{configfile});
+  # process as usual
+  if (ref($configfile) eq "HASH") {
+    # initialize with given hash
+    $self->{config} = $configfile;
+    $self->{parsed} = 1;
+  }
+  else {
+    # open the file and read the contents in
+    $self->{configfile} = $configfile;
+    $self->_open($self->{configfile});
+    # now, we parse immdediately, getall simply returns the whole hash
+    $self->{config} = $self->_parse({}, $self->{content});
+  }
 
   return $self;
 }
@@ -47,18 +73,11 @@ sub new {
 sub getall {
   #
   # just return the whole config hash
-  # parse the contents of the file
   #
   my($this) = @_;
-
-  # avoid twice parsing
-  if (!$this->{parsed}) {
-    $this->{parsed} = 1;
-    $this->{config} = $this->_parse({}, $this->{content});
-  }
-  my %allhash = %{$this->{config}};
-  return %allhash;
+  return (exists $this->{config} ? %{$this->{config}} : () );
 }
+
 
 
 
@@ -73,7 +92,7 @@ sub _open {
   my $fh = new FileHandle;
 
   if (-e $configfile) {
-    open $fh, "<$configfile" or die "Could not open $configfile!($!)\n";
+    open $fh, "<$configfile" or croak "Could not open $configfile!($!)\n";
     while (<$fh>) {
       chomp;
       next if (/^\s*$/ || /^\s*#/);               # ignore whitespace(s) and lines beginning with #
@@ -143,7 +162,7 @@ sub _open {
     close $fh;
   }
   else {
-    die "The file \"$configfile\" does not exist!\n";
+    croak "The file \"$configfile\" does not exist!\n";
   }
   return 1;
 }
@@ -181,12 +200,12 @@ sub _parse {
 	next;
       }
       elsif (/^<\/(.+?)>$/) {                              # it is an end block, but we don't have a matching block!
-	die "EndBlock \"<\/$1>\" has no StartBlock statement (level: $this->{level}, chunk $chunk)!\n";
+	croak "EndBlock \"<\/$1>\" has no StartBlock statement (level: $this->{level}, chunk $chunk)!\n";
       }
       else {                                               # insert key/value pair into actual node
 	if ($this->{NoMultiOptions}) {                     # configurable via special method ::NoMultiOptions()
 	  if (exists $config->{$option}) {
-	    die "Option $config->{$option} occurs more than once (level: $this->{level}, chunk $chunk)!\n";
+	    croak "Option $config->{$option} occurs more than once (level: $this->{level}, chunk $chunk)!\n";
 	  }
 	  $config->{$option} = $value;
 	}
@@ -235,7 +254,7 @@ sub _parse {
   if ($block) {
     # $block is still defined, which means, that it had
     # no matching endblock!
-    die "Block \"<$block>\" has no EndBlock statement (level: $this->{level}, chunk $chunk)!\n";
+    croak "Block \"<$block>\" has no EndBlock statement (level: $this->{level}, chunk $chunk)!\n";
   }
   return $config;
 }
@@ -243,10 +262,13 @@ sub _parse {
 
 sub NoMultiOptions {
   #
-  # turn NoMultiOptions off
+  # turn NoMultiOptions off, still exists for backward compatibility.
+  # Since we do parsing from within new(), we must
+  # call it again if one turns NoMultiOptions on!
   #
   my($this) = @_;
   $this->{NoMultiOptions} = 1;
+  $this->{config} = $this->_parse({}, $this->{content});
 }
 
 
@@ -258,7 +280,7 @@ sub save {
   my($this,$file, %config) = @_;
   my $fh = new FileHandle;
 
-  open $fh, ">$file" or die "Could not open $file!($!)\n";
+  open $fh, ">$file" or croak "Could not open $file!($!)\n";
   $this->_store($fh, 0,%config);
 }
 
@@ -318,6 +340,9 @@ Config::General - Generic Config Module
  $conf = new Config::General("rcfile");
  my %config = $conf->getall;
 
+ # or
+ $conf = new Config::General(\%somehash);
+
 =head1 DESCRIPTION
 
 This small module opens a config file and parses it's contents for you. The B<new> method
@@ -331,34 +356,68 @@ name/value pairs in your config files.
 In addition to the capabilities of an apache config file it supports some enhancements such as here-documents,
 C-style comments or multiline options.
 
-There are currently no methods available for accessing sub-parts of the generated hash structure, so it
-is on you to access the data within the hash. But there exists a module on CPAN which you can use for
-this purpose: Data::DRef. Check it out!
 
 =head1 METHODS
 
 =over
 
-=item new("filename")
+=item new()
 
-This method returns a B<Config::General> object (a hash bleesed into "Config::General" namespace.
+Possible ways to call B<new()>:
+
+ $conf = new Config::General("rcfile");
+
+ $conf = new Config::General(\%somehash);
+
+ $conf = new Config::General(
+                       -file => "rcfile",
+                       -AllowMultiOptions => "no"
+                            );
+
+ $conf = new Config::General(
+                       -hash => \%somehash,
+                            );
+
+This method returns a B<Config::General> object (a hash blessed into "Config::General" namespace.
 All further methods must be used from that returned object. see below.
+
+You can use the new style with hash parameters or the old style which is of course
+still supported. Possible parameters are:
+
+ a filename of a configfile
+
+ a hash reference
+
+ or a hash with one or more of the following keys set:
+
+    -file               - a filename.
+    -hash               - a hash reference.
+    -AllowMultiOptions  - if the value is "no", then multiple
+                          identical options are disallowed.
 
 
 =item NoMultiOptions()
 
-Turns off the feature of allwing multiple options with identical names.
+This method only exists for compatibility reasons.
+Now you should set the new() flag B<-AllowMultiOptions>
+to "no".
+
+=over
+
+=item The old description:
+This Turns off the feature of allwing multiple options with identical names.
 The default behavior is to create an array if an option occurs more than
 once. But under certain circumstances you may not be willed to allow that.
 In this case use this method before you call B<getall> to turn it off.
+
+=back
 
 Please note, that there is no method provided to turn this feature on.
 
 
 =item getall()
 
-Actually parses the contents of the config file and returns a hash structure
-which represents the config.
+Returns a hash structure which represents the whole config.
 
 
 =item save("filename", %confighash)
@@ -491,12 +550,10 @@ check if an option occured more than once:
      @ALLOWED = ($allowed);
  }
 
-If you don't want to allow more than one identical options, you may turn it off:
-
- $conf->NoMultiOptions();
-
-And you must call B<NoMultiOptions> before calling B<getall>! If NoMultiOptions is set
-then you will get a warning if an option occurs more than once.
+If you don't want to allow more than one identical options, you may turn it off
+by setting the flag I<AllowMutliOptions> in the B<new()> method to "no".
+If turned off, Config::General will complain about multiple occuring options
+whit identical names!
 
 
 =head1 NAMED BLOCKS
@@ -652,12 +709,12 @@ none known yet.
 
 =head1 AUTHOR
 
-Thomas Linden <tom@consol.de>
+Thomas Linden <tom@daemon.de>
 
 
 =head1 VERSION
 
-1.17
+1.18
 
 =cut
 

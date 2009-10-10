@@ -25,11 +25,6 @@ DESCRIPTION
        it supports some enhancements such as here-documents, C-
        style comments or multiline options.
 
-       There are currently no methods available for accessing
-       sub-parts of the generated hash structure, so it is on you
-       to access the data within the hash. But there exists a
-       module on CPAN which you can use for this purpose:
-       Data::DRef. Check it out!
 
 
 INSTALLATION
@@ -75,7 +70,7 @@ BUGS
 
 
 AUTHOR
-       Thomas Linden <tom@consol.de>
+       Thomas Linden <tom@daemon.de>
 
 
 VERSION
