@@ -32,7 +32,7 @@ use Carp::Heavy;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = 2.34;
+$Config::General::VERSION = 2.37;
 
 use vars  qw(@ISA @EXPORT_OK);
 use base qw(Exporter);
@@ -78,10 +78,6 @@ sub new {
 	      StrictVars            => 1,       # be strict on undefined variables in Interpolate mode
 	      Tie                   => q(),      # could be set to a perl module for tie'ing new hashes
 	      parsed                => 0,       # internal state stuff for variable interpolation
-	      upperkey              => q(),
-	      upperkeys             => [],
-	      lastkey               => q(),
-	      prevkey               => q( ),
 	      files                 => {},      # which files we have read, if any
 	     };
 
@@ -116,6 +112,10 @@ sub new {
     $self->_process();
   }
 
+  if ($self->{InterPolateVars}) {
+    $self->{config} = $self->_clean_stack($self->{config});
+  }
+
   # bless into OOP namespace if required
   $self->_blessoop();
 
@@ -144,7 +144,7 @@ sub _process {
       $self->{parsed} = 1;
     }
     else {
-      croak "Parameter -ConfigHash must be a hash reference!\n";
+      croak "Config::General: Parameter -ConfigHash must be a hash reference!\n";
     }
   }
   elsif (ref($self->{ConfigFile}) eq 'GLOB' || ref($self->{ConfigFile}) eq 'FileHandle') {
@@ -191,7 +191,7 @@ sub _blessoop {
       require Config::General::Extended;
     };
     if ($EVAL_ERROR) {
-      croak $EVAL_ERROR;
+      croak "Config::General: " . $EVAL_ERROR;
     }
   }
 #  return $self;
@@ -212,7 +212,7 @@ sub _blessvars {
       require Config::General::Interpolated;
     };
     if ($EVAL_ERROR) {
-      croak $EVAL_ERROR;
+      croak "Config::General: " . $EVAL_ERROR;
     }
     # pre-compile the variable regexp
     $self->{regex} = $self->_set_regex();
@@ -240,11 +240,11 @@ sub _splitpolicy {
     }
     elsif ($self->{SplitPolicy} eq 'custom') {
       if (! $self->{SplitDelimiter} ) {
-	croak "SplitPolicy set to 'custom' but no SplitDelimiter set.\n";
+	croak "Config::General: SplitPolicy set to 'custom' but no SplitDelimiter set.\n";
       }
     }
     else {
-      croak "Unsupported SplitPolicy: $self->{SplitPolicy}.\n";
+      croak "Config::General: Unsupported SplitPolicy: $self->{SplitPolicy}.\n";
     }
   }
   else {
@@ -299,7 +299,7 @@ sub _prepare {
       $self->{StringContent} = join '\n', @{$conf{-String}};
     }
     else {
-      croak "Parameter -String must be a SCALAR!\n";
+      croak "Config::General: Parameter -String must be a SCALAR!\n";
     }
   }
 
@@ -336,7 +336,7 @@ sub _prepare {
     my $key = $entry;
     $key =~ s/^\-//;
     if (! exists $self->{$key}) {
-      croak "Unknown parameter: $entry => \"$conf{$entry}\" (key: <$key>)\n";
+      croak "Config::General: Unknown parameter: $entry => \"$conf{$entry}\" (key: <$key>)\n";
     }
     if ($conf{$entry} =~ /$self->{AutoTrueFlags}->{true}/io) {
       $self->{$key} = 1;
@@ -436,7 +436,7 @@ sub _open {
     }
     if (!$found) {
       my $path_message = defined $this->{ConfigPath} ? q( within ConfigPath: ) . join(q(.), @{$this->{ConfigPath}}) : q();
-      croak qq{The file "$basefile" does not exist$path_message!};
+      croak qq{Config::GeneralThe file "$basefile" does not exist$path_message!};
     }
   }
 
@@ -449,7 +449,7 @@ sub _open {
   if (-d $configfile and $this->{IncludeDirectories}) {
     # A directory was included; include all the files inside that directory in ASCII order
     local *INCLUDEDIR;
-    opendir INCLUDEDIR, $configfile or croak "Could not open directory $configfile!($!)\n";
+    opendir INCLUDEDIR, $configfile or croak "Config::General: Could not open directory $configfile!($!)\n";
     my @files = sort grep { -f catfile($configfile, $_) } catfile($configfile, $_), readdir INCLUDEDIR;
     closedir INCLUDEDIR;
     local $this->{CurrentConfigFilePath} = $configfile;
@@ -457,7 +457,7 @@ sub _open {
       my $file = catfile($configfile, $_);
       if (! exists $this->{files}->{$file} or $this->{IncludeAgain} ) {
         # support re-read if used urged us to do so, otherwise ignore the file
-	$fh = IO::File->new( $file, 'r') or croak "Could not open $file!($!)\n";
+	$fh = IO::File->new( $file, 'r') or croak "Config::General: Could not open $file!($!)\n";
 	$this->{files}->{"$file"} = 1;
 	$this->_read($fh);
       }
@@ -473,7 +473,7 @@ sub _open {
       return;
     }
     else {
-      $fh = IO::File->new( "$configfile", 'r') or croak "Could not open $configfile!($!)\n";
+      $fh = IO::File->new( "$configfile", 'r') or croak "Config::General: Could not open $configfile!($!)\n";
 
       $this->{files}->{$configfile}    = 1;
 
@@ -745,16 +745,11 @@ sub _parse {
 	  }
 	}
 	if ($this->{InterPolateVars}) {
-          # Clear everything from the next level
-          # rt:27225
-          if (defined $this->{stack} and defined $this->{stack}->{$this->{level} + 1}) {
-            $this->{stack}->{$this->{level} + 1} = {};
-          }
 	  # interpolate block(name), add "<" and ">" to the key, because
 	  # it is sure that such keys does not exist otherwise.
-	  $block     = $this->_interpolate("<$block>", $block);
+	  $block     = $this->_interpolate($config, "<$block>", $block);
 	  if (defined $blockname) {
-	    $blockname = $this->_interpolate("<$blockname>", "$blockname");
+	    $blockname = $this->_interpolate($config, "<$blockname>", "$blockname");
 	  }
 	}
 	if ($this->{LowerCaseNames}) {
@@ -764,21 +759,22 @@ sub _parse {
 	undef @newcontent;
 	next;
       }
-      elsif (/^<\/(.+?)>$/) {                              # it is an end block, but we don't have a matching block!
-	croak "EndBlock \"<\/$1>\" has no StartBlock statement (level: $this->{level}, chunk $chunk)!\n";
+      elsif (/^<\/(.+?)>$/) { # it is an end block, but we don't have a matching block!
+	croak "Config::General: EndBlock \"<\/$1>\" has no StartBlock statement (level: $this->{level}, chunk $chunk)!\n";
       }
       else {                                               # insert key/value pair into actual node
 	if ($this->{LowerCaseNames}) {
 	  $option = lc $option;
 	}
+
 	if (exists $config->{$option}) {
 	  if ($this->{MergeDuplicateOptions}) {
-	    $config->{$option} = $this->_parse_value($option, $value);
+	    $config->{$option} = $this->_parse_value($config, $option, $value);
 	  }
 	  else {
 	    if (! $this->{AllowMultiOptions} ) {
 	      # no, duplicates not allowed
-	      croak "Option \"$option\" occurs more than once (level: $this->{level}, chunk $chunk)!\n";
+	      croak "Config::General: Option \"$option\" occurs more than once (level: $this->{level}, chunk $chunk)!\n";
 	    }
 	    else {
 	      # yes, duplicates allowed
@@ -792,18 +788,23 @@ sub _parse {
 		my $i = scalar @{$config->{$option}};
 	      };
 	      if ($EVAL_ERROR) {
-		$config->{$option} = $this->_parse_value($option, $value);
+		$config->{$option} = $this->_parse_value($config, $option, $value);
 	      }
 	      else {
 		# it's already an array, just push
-		push @{$config->{$option}}, $this->_parse_value($option, $value);
+		push @{$config->{$option}}, $this->_parse_value($config, $option, $value);
 	      }
 	    }
 	  }
 	}
 	else {
 	  # standard config option, insert key/value pair into node
-	  $config->{$option} = $this->_parse_value($option, $value);
+	  $config->{$option} = $this->_parse_value($config, $option, $value);
+
+	  if ($this->{InterPolateVars}) {
+	    # save pair on local stack
+	    $config->{__stack}->{$option} = $config->{$option};
+	  }
 	}
       }
     }
@@ -817,14 +818,29 @@ sub _parse {
 	push @newcontent, $_;       # push onto new content stack
       }
       else {                        # calling myself recursively, end of $block reached, $block_level is 0
-	if (defined $blockname) {           # a named block, make it a hashref inside a hash within the current node
-	  $this->_savelast($blockname);
+	if (defined $blockname) {
+	  # a named block, make it a hashref inside a hash within the current node
 
 	  if (! exists $config->{$block}) {
-	    $config->{$block} = $this->_hashref(); # Make sure that the hash is not created implicitely
+	    # Make sure that the hash is not created implicitly
+	    $config->{$block} = $this->_hashref();
+
+	    if ($this->{InterPolateVars}) {
+	      # inherit current __stack to new block
+	      $config->{$block}->{__stack} = $config->{__stack};
+	    }
 	  }
 
-	  if (exists $config->{$block}->{$blockname}) {    # the named block already exists, make it an array
+	  if (ref($config->{$block}) eq '') {
+	    croak "Config::General: Block <$block> already exists as scalar entry!\n";
+	  }
+	  elsif (ref($config->{$block}) eq 'ARRAY') {
+	    croak "Config::General: Cannot append named block <$block $blockname> to array of scalars!\n"
+	         ."Block <$block> or scalar '$block' occurs more than once.\n"
+	         ."Turn on -MergeDuplicateBlocks or make sure <$block> occurs only once in the config.\n";
+	  }
+	  elsif (exists $config->{$block}->{$blockname}) {
+	    # the named block already exists, make it an array
 	    if ($this->{MergeDuplicateBlocks}) {
 	      # just merge the new block with the same name as an existing one into
               # this one.
@@ -832,7 +848,7 @@ sub _parse {
 	    }
 	    else {
 	      if (! $this->{AllowMultiOptions}) {
-		croak "Named block \"<$block $blockname>\" occurs more than once (level: $this->{level}, chunk $chunk)!\n";
+		croak "Config::General: Named block \"<$block $blockname>\" occurs more than once (level: $this->{level}, chunk $chunk)!\n";
 	      }
 	      else {                                       # preserve existing data
 		my $savevalue = $config->{$block}->{$blockname};
@@ -849,19 +865,27 @@ sub _parse {
 	      }
 	    }
 	  }
-	  elsif (ref($config->{$block}) eq 'ARRAY') {
-	    croak "Cannot add named block <$block $blockname> to hash! Block <$block> occurs more than once.\n"
-	         ."Turn on -MergeDuplicateBlocks or make sure <$block> occurs only once in the config.\n";
-	  }
 	  else {
 	    # the first occurence of this particular named block
-	    $config->{$block}->{$blockname} = $this->_parse($this->_hashref(), \@newcontent);
+	    my $tmphash = $this->_hashref();
+
+	    if ($this->{InterPolateVars}) {
+	      # inherit current __stack to new block
+	      $tmphash->{__stack} = $config->{__stack};
+	    }
+
+	    $config->{$block}->{$blockname} = $this->_parse($tmphash, \@newcontent);
 	  }
-	  $this->_backlast($blockname);
 	}
-	else {                                             # standard block
-	  $this->_savelast($block);
-	  if (exists $config->{$block}) {                  # the block already exists, make it an array
+	else {
+	  # standard block
+	  if (exists $config->{$block}) {
+	    if (ref($config->{$block}) eq '') {
+	      croak "Config::General: Cannot create hashref from <$block> because there is\n"
+		   ."already a scalar option '$block' with value '$config->{$block}'\n";
+	    }
+
+	    # the block already exists, make it an array
 	    if ($this->{MergeDuplicateBlocks}) {
 	      # just merge the new block with the same name as an existing one into
               # this one.
@@ -869,7 +893,7 @@ sub _parse {
             }
             else {
 	      if (! $this->{AllowMultiOptions}) {
-	        croak "Block \"<$block>\" occurs more than once (level: $this->{level}, chunk $chunk)!\n";
+	        croak "Config::General: Block \"<$block>\" occurs more than once (level: $this->{level}, chunk $chunk)!\n";
 	      }
 	      else {
 		my $savevalue = $config->{$block};
@@ -888,10 +912,15 @@ sub _parse {
 	  }
 	  else {
 	    # the first occurence of this particular block
-	    #### $config->{$block} = $this->_parse($config->{$block}, \@newcontent);
-	    $config->{$block} = $this->_parse($this->_hashref(), \@newcontent);
+	    my $tmphash = $this->_hashref();
+
+	    if ($this->{InterPolateVars}) {
+	      # inherit current __stack to new block
+	      $tmphash->{__stack} = $config->{__stack};
+	    }
+
+	    $config->{$block} = $this->_parse($tmphash, \@newcontent);
 	  }
-	  $this->_backlast($block);
 	}
 	undef $blockname;
 	undef $block;
@@ -906,26 +935,11 @@ sub _parse {
   if ($block) {
     # $block is still defined, which means, that it had
     # no matching endblock!
-    croak "Block \"<$block>\" has no EndBlock statement (level: $this->{level}, chunk $chunk)!\n";
+    croak "Config::General: Block \"<$block>\" has no EndBlock statement (level: $this->{level}, chunk $chunk)!\n";
   }
   return $config;
 }
 
-
-sub _savelast {
-  my($this, $key) = @_;
-  push @{$this->{upperkeys}}, $this->{lastkey};
-  $this->{lastkey}  = $this->{prevkey};
-  $this->{prevkey}  = $key;
-  return;
-}
-
-sub _backlast {
-  my($this, $key) = @_;
-  $this->{prevkey} = $this->{lastkey};
-  $this->{lastkey} = pop @{$this->{upperkeys}};
-  return;
-}
 
 sub _parse_value {
   #
@@ -933,7 +947,7 @@ sub _parse_value {
   # by either -AutoTrue and/or -FlagBits
   # otherwise just return the given value unchanged
   #
-  my($this, $option, $value) =@_;
+  my($this, $config, $option, $value) =@_;
 
   # avoid "Use of uninitialized value"
   if (! defined $value) {
@@ -941,7 +955,7 @@ sub _parse_value {
   }
 
   if ($this->{InterPolateVars}) {
-    $value = $this->_interpolate($option, $value);
+    $value = $this->_interpolate($config, $option, $value);
   }
 
   # make true/false values to 1 or 0 (-AutoTrue)
@@ -983,7 +997,7 @@ sub NoMultiOptions {
   # Since we do parsing from within new(), we must
   # call it again if one turns NoMultiOptions on!
   #
-  croak q(The NoMultiOptions() method is deprecated. Set 'AllowMultiOptions' to 'no' instead!);
+  croak q(Config::GeneralThe NoMultiOptions() method is deprecated. Set 'AllowMultiOptions' to 'no' instead!);
 }
 
 
@@ -1003,7 +1017,7 @@ sub save {
     $this->save_file($one, \%h);
   }
   else {
-    croak q(The save() method is deprecated. Use the new save_file() method instead!);
+    croak q(Config::GeneralThe save() method is deprecated. Use the new save_file() method instead!);
   }
   return;
 }
@@ -1018,17 +1032,17 @@ sub save_file {
   my $config_string;
 
   if (!$file) {
-    croak "Filename is required!";
+    croak "Config::General: Filename is required!";
   }
   else {
-    $fh = IO::File->new( "$file", 'w') or croak "Could not open $file!($!)\n";
+    $fh = IO::File->new( "$file", 'w') or croak "Config::General: Could not open $file!($!)\n";
 
     if (!$config) {
       if (exists $this->{config}) {
 	$config_string = $this->_store(0, %{$this->{config}});
       }
       else {
-	croak "No config hash supplied which could be saved to disk!\n";
+	croak "Config::General: No config hash supplied which could be saved to disk!\n";
       }
     }
     else {
@@ -1061,7 +1075,7 @@ sub save_string {
       return $this->_store(0, %{$this->{config}});
     }
     else {
-      croak "No config hash supplied which could be saved to disk!\n";
+      croak "Config::General: No config hash supplied which could be saved to disk!\n";
     }
   }
   else {
@@ -1180,7 +1194,7 @@ sub _hashref {
       eval qq{require $this->{Tie}};
     };
     if ($EVAL_ERROR) {
-      croak q(Could not create a tied hash of type: ) . $this->{Tie} . q(: ) . $EVAL_ERROR;
+      croak q(Config::GeneralCould not create a tied hash of type: ) . $this->{Tie} . q(: ) . $EVAL_ERROR;
     }
     my %hash;
     tie %hash, $this->{Tie};
@@ -1210,11 +1224,11 @@ sub SaveConfig {
   my ($file, $hash) = @_;
 
   if (!$file || !$hash) {
-    croak q{SaveConfig(): filename and hash argument required.};
+    croak q{Config::GeneralSaveConfig(): filename and hash argument required.};
   }
   else {
     if (ref($hash) ne 'HASH') {
-      croak q(The second parameter must be a reference to a hash!);
+      croak q(Config::GeneralThe second parameter must be a reference to a hash!);
     }
     else {
       (new Config::General(-ConfigHash => $hash))->save_file($file);
@@ -1231,11 +1245,11 @@ sub SaveConfigString {
   my ($hash) = @_;
 
   if (!$hash) {
-    croak q{SaveConfigString(): Hash argument required.};
+    croak q{Config::GeneralSaveConfigString(): Hash argument required.};
   }
   else {
     if (ref($hash) ne 'HASH') {
-      croak q(The parameter must be a reference to a hash!);
+      croak q(Config::GeneralThe parameter must be a reference to a hash!);
     }
     else {
       return (new Config::General(-ConfigHash => $hash))->save_string();
@@ -2376,7 +2390,7 @@ Thomas Linden <tlinden |AT| cpan.org>
 
 =head1 VERSION
 
-2.33
+2.37
 
 =cut
 

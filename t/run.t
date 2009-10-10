@@ -8,7 +8,7 @@
 
 
 use Data::Dumper;
-use Test::More tests => 38;
+use Test::More tests => 43;
 #use Test::More qw(no_plan);
 
 ### 1
@@ -117,16 +117,25 @@ else {
 }
 
 
+
 ### 17
 # testing value pre-setting using a hash
 my $conf17 = new Config::General(
  -file => "t/cfg.17",
- -DefaultConfig => { home => "/exports/home", logs => "/var/backlog" },
+ -DefaultConfig => { home => "/exports/home",
+		     logs => "/var/backlog",
+                     foo  => {
+			       bar => "quux"
+			     }
+		   },
+ -InterPolateVars => 1,
  -MergeDuplicateOptions => 1,
  -MergeDuplicateBlocks => 1
 );
 my %h17 = $conf17->getall();
-ok ($h17{home} eq "/home/users", "Testing value pre-setting using a hash");
+ok ($h17{home} eq "/home/users" &&
+    $h17{foo}{quux} eq "quux",
+    "Testing value pre-setting using a hash");
 
 
 ### 18
@@ -404,7 +413,7 @@ my %C36 = $conf36->getall;
 is_deeply( \%C36, { bit => { one => { honk=>'bonk' }, 
                            two => { honk=>'bonk' } 
                 }        }, "Included twice" );
-                        
+
 
 ### Include once
 diag "\nPlease ignore the following message about IncludeAgain";
@@ -423,3 +432,21 @@ my %C38 = $conf38->getall;
 is_deeply( \%C38, { bit => { one => { honk=>'bonk' }, 
                            two => { honk=>'bonk' } 
                 }        }, "Apache-style include" );
+
+#### 39 verifies bug rt#27225
+# testing variable scope.
+# a variable shall resolve to the value defined in the current
+# scope, not a previous outer scope.
+my $conf39 = new Config::General(-ConfigFile => "t/cfg.39", -InterPolateVars => 1, -StrictVars => 0);
+my %conf39 = $conf39->getall();
+isnt($conf39{outer}->{b1}->{inner}->{ivar},
+     $conf39{outer}->{b2}->{inner}->{ivar},
+     "Variable scope test");
+
+### 40 - 42 verify if structural error checks are working
+foreach my $pos (40 .. 43) {
+  eval {
+    my $conf = new Config::General(-ConfigFile => "t/cfg.$pos");
+  };
+  ok($@ =~ /^Config::General/, "$pos: Structural error checks");
+}

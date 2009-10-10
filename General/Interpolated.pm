@@ -8,7 +8,7 @@
 #
 
 package Config::General::Interpolated;
-$Config::General::Interpolated::VERSION = "2.08";
+$Config::General::Interpolated::VERSION = "2.09";
 
 use strict;
 use Carp;
@@ -64,34 +64,15 @@ sub _interpolate  {
   #
   # called directly by Config::General::_parse_value()
   #
-  my ($this, $key, $value) = @_;
-
-  my $prevkey;
-
-  if ($this->{level} == 1) {
-    # top level
-    $prevkey = " ";
-  }
-  else {
-    # incorporate variables outside current scope(block) into
-    # our scope to make them visible to _interpolate()
-
-    foreach my $key (keys %{$this->{stack}->{ $this->{level} - 1}->{ $this->{lastkey} }}) {
-      if (! exists $this->{stack}->{ $this->{level} }->{ $this->{prevkey} }->{$key}) {
-	# only import a variable if it is not re-defined in current scope! (rt.cpan.org bug #20742
-	$this->{stack}->{ $this->{level} }->{ $this->{prevkey} }->{$key} = $this->{stack}->{ $this->{level} - 1}->{ $this->{lastkey} }->{$key};
-      }
-    }
-
-    $prevkey = $this->{prevkey};
-  }
+  my ($this, $config, $key, $value) = @_;
 
   $value =~ s{$this->{regex}}{
     my $con = $1;
     my $var = $3;
     my $var_lc = $this->{LowerCaseNames} ? lc($var) : $var;
-    if (exists $this->{stack}->{ $this->{level} }->{ $prevkey }->{$var_lc}) {
-      $con . $this->{stack}->{ $this->{level} }->{ $prevkey }->{$var_lc};
+
+    if (exists $config->{__stack}->{$var_lc}) {
+      $con . $config->{__stack}->{$var_lc};
     }
     elsif ($this->{InterPolateEnv}) {
       # may lead to vulnerabilities, by default flag turned off
@@ -113,8 +94,6 @@ sub _interpolate  {
     }
   }egx;
 
-  $this->{stack}->{ $this->{level} }->{ $prevkey }->{$key} = $value;
-
   return $value;
 };
 
@@ -128,19 +107,7 @@ sub _interpolate_hash {
   #
   my ($this, $config) = @_;
 
-  $this->{level}     = 1;
-  $this->{upperkey}  = "";
-  $this->{upperkeys} = [];
-  $this->{lastkey}   = "";
-  $this->{prevkey}   = " ";
-
   $config = $this->_var_hash_stacker($config);
-
-  $this->{level}    = 1;
-  $this->{upperkey} = "";
-  $this->{upperkeys} = [];
-  $this->{lastkey}  = "";
-  $this->{prevkey}  = " ";
 
   return $config;
 }
@@ -152,23 +119,18 @@ sub _var_hash_stacker {
   my ($this, $config) = @_;
 
   foreach my $key (keys %{$config}) {
+    next if($key eq "__stack");
     if (ref($config->{$key}) eq "ARRAY" ) {
-      $this->{level}++;
-      $this->_savelast($key);
       $config->{$key} = $this->_var_array_stacker($config->{$key}, $key);
-      $this->_backlast($key);
-      $this->{level}--;
     }
     elsif (ref($config->{$key}) eq "HASH") {
-      $this->{level}++;
-      $this->_savelast($key);
-      $config->{$key} = $this->_var_hash_stacker($config->{$key});
-      $this->_backlast($key);
-      $this->{level}--;
+      my $tmphash = $config->{$key};
+      $tmphash->{__stack} = $config->{__stack};
+      $config->{$key} = $this->_var_hash_stacker($tmphash);
     }
     else {
       # SCALAR
-      $config->{$key} = $this->_interpolate($key, $config->{$key});
+      $config->{__stack}->{$key} = $config->{$key};
     }
   }
 
@@ -195,7 +157,7 @@ sub _var_array_stacker {
       next;
     }
     else {
-      $entry = $this->_interpolate($key, $entry);
+      $config->{__stack}->{$key} = $config->{$key};
     }
     push @new, $entry;
   }
@@ -203,6 +165,50 @@ sub _var_array_stacker {
   return  \@new;
 }
 
+sub _clean_stack {
+  #
+  # recursively empty the variable stack
+  #
+  my ($this, $config) = @_;
+  foreach my $key (keys %{$config}) {
+    if ($key eq "__stack") {
+      delete $config->{__stack};
+      next;
+    }
+    if (ref($config->{$key}) eq "ARRAY" ) {
+      $config->{$key} = $this->_clean_array_stack($config->{$key});
+    }
+    elsif (ref($config->{$key}) eq "HASH") {
+      $config->{$key} = $this->_clean_stack($config->{$key});
+    }
+  }
+  return $config;
+}
+
+
+sub _clean_array_stack {
+  #
+  # same as _var_hash_stacker but for arrayrefs
+  #
+  my ($this, $config) = @_;
+
+  my @new;
+
+  foreach my $entry (@{$config}) {
+    if (ref($entry) eq "HASH") {
+      $entry = $this->_clean_stack($entry);
+    }
+    elsif (ref($entry) eq "ARRAY") {
+      # ignore this. Arrays of Arrays cannot be created/supported
+      # with Config::General, because they are not accessible by
+      # any key (anonymous array-ref)
+      next;
+    }
+    push @new, $entry;
+  }
+
+  return  \@new;
+}
 
 1;
 
@@ -312,7 +318,7 @@ See L<http://www.perl.com/perl/misc/Artistic.html>
 
 =head1 VERSION
 
-2.08
+2.09
 
 =cut
 

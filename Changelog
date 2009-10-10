@@ -1,3 +1,25 @@
+ 2.37
+	- "fixed" rt.cpan.org#30199 - check for invalid and
+	  unsupported structures, especially mixing blocks
+	  and scalars with identical names.
+
+	- added checks to 'make test' to test for the above
+	  checks.
+
+	- revoked patch of rt.cpan.org#27225, it broke running
+	  code.
+
+	- fixed rt.cpan.org#30063 (and #27225!) by reimplementing
+	  the whole interpolation code. The internal stack is
+	  no more a class variable of the module but stored
+	  directly within the generated config hash and cleaned
+	  before returning to the user.
+
+	- added (modified) patch rt.cpan.org#30063 to check
+	  if interpolation works with supplied default config
+	  works.
+
+
  2.36
 	- oh my goodness! For some unknown reason I deleted the
 	  Makefile.PL before packaging. Dammit. So, here it is
