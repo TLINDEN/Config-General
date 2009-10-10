@@ -109,6 +109,7 @@ sub _open {
       # patch by "Manuel Valente" <manuel@ripe.net>:
       if (!$hierend) {
 	s/(?<!\\)#.+$//;                          # Remove comments
+	next if /^#/;                             # Remove lines beginning with "#"
 	next if /^\s*$/;                          # Skip empty lines
 	s/\\#/#/g;                                # remove the \ char in front of masked "#"
       }
