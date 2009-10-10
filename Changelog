@@ -1,3 +1,15 @@
+ 2.35
+	- 'make test' failed under perl 5.5 because some prequisite
+	  modules were not found. So now I added all requirements
+	  to Makefile.PL, even if those modules are part of
+	  recent perls (beginning with 5.6). I could have also 
+	  added a 'use 5.6' to the code but this would users
+	  of perl5 exclude. This way they have the possibility
+	  to fix their installation. Hopefully.
+
+	  No code changes otherwise.
+
+
  2.34
         - fixed rt.cpan.org#27271 - removed output file from
           manifest.
