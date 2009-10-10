@@ -1,3 +1,8 @@
+ 1.35    - the here-doc identifier in saved configs will now created
+           in a way which avoids the existence of this identifier
+	   inside the here-doc, which if it happens results in
+           weird behavior in the resulting config.
+
  1.34    - Danial Pearce <danial@infoxchange.net.au> reported a bug
            in _store(), which caused the module to create scalar
 	   entries even if the entry contained newlines. While

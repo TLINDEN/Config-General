@@ -1,12 +1,11 @@
 #
 # Config::General.pm - Generic Config Module
 #
-# Purpose: Provide a convenient way
-#          for loading config values from a
-#          given file and return it as hash
-#          structure
+# Purpose: Provide a convenient way for loading
+#          config values from a given file and
+#          return it as hash structure
 #
-# Copyright (c) 2000-2001 Thomas Linden <tom@daemon.de>.
+# Copyright (c) 2000-2002 Thomas Linden <tom@daemon.de>.
 # All Rights Reserved. Std. disclaimer applies.
 # Artificial License, same as perl itself. Have fun.
 #
@@ -18,7 +17,7 @@ use strict;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = "1.33";
+$Config::General::VERSION = "1.35";
 
 use vars  qw(@ISA @EXPORT);
 @ISA    = qw(Exporter);
@@ -616,12 +615,23 @@ sub _write_scalar {
 
   if ($line =~ /\n/) {
     # it is a here doc
+    my $delimiter;
+    my $tmplimiter = "EOF";
+    while (!$delimiter) {
+      # create a unique here-doc identifier
+      if ($line =~ /$tmplimiter/s) {
+	$tmplimiter .= "%";
+      }
+      else {
+	$delimiter = $tmplimiter;
+      }
+    }
     my @lines = split /\n/, $line;
-    $config_string .= $indent . $entry . " <<EOF\n";
+    $config_string .= $indent . $entry . " <<$delimiter\n";
     foreach (@lines) {
       $config_string .= $indent . $_ . "\n";
     }
-    $config_string .= $indent . "EOF\n";
+    $config_string .= $indent . "$delimiter\n";
   }
   else {
     # a simple stupid scalar entry
@@ -1467,7 +1477,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-1.34
+1.35
 
 =cut
 
