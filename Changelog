@@ -1,3 +1,12 @@
+ 2.26
+	 - fixed invalid regexp in _open() which circumvented
+	   explicit empty block to work when the block statement
+	   included whitespaces.
+	
+	 - more finetuning in Makefile.PL for cleaning emacs'
+	   ~ files.
+
+
  2.25
 	 - fixed bug with not working -IncludeRelative setting when
 	   including a config file. It were only included from the

@@ -18,7 +18,7 @@ use strict;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = "2.25";
+$Config::General::VERSION = "2.26";
 
 use vars  qw(@ISA @EXPORT);
 @ISA    = qw(Exporter);
@@ -452,7 +452,7 @@ sub _read {
 
 
     # transform explicit-empty blocks to conforming blocks
-    if (/^<([^\/]+?.*?)\/>$/) {
+    if (/\s*<([^\/]+?.*?)\/>$/) {
       my $block = $1;
       my $orig  = $_;
       $orig     =~ s/\/>$/>/;
@@ -1986,7 +1986,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-2.25
+2.26
 
 =cut
 
