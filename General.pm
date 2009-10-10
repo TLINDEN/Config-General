@@ -10,6 +10,10 @@
 # All Rights Reserved. Std. disclaimer applies.
 # Artificial License, same as perl itself. Have fun.
 #
+# Changes from 1.19:   - added an if(exists... to new() for checking of the
+#                        existence of -AllowMultiOptions.
+#                      - use now "local $_" because it caused weird results
+#                        if a user used $_ with the module.
 # Changes from 1.18:   - you can escape "#" characters using a backslash: "\#"
 #                        which will now no more treated as a comment.
 #                      - comments inside here-documents will now remain in the
@@ -22,7 +26,7 @@ use FileHandle;
 use strict;
 use Carp;
 
-$Config::General::VERSION = "1.19";
+$Config::General::VERSION = "1.20";
 
 sub new {
   #
@@ -41,8 +45,10 @@ sub new {
     my %conf = @param;
     $configfile = delete $conf{-file} if(exists $conf{-file});
     $configfile = delete $conf{-hash} if(exists $conf{-hash});
-    if ($conf{-AllowMultiOptions} =~ /^no$/) {
-      $self->{NoMultiOptions} = 1;
+    if (exists $conf{-AllowMultiOptions} ) {
+      if ($conf{-AllowMultiOptions} =~ /^no$/) {
+	$self->{NoMultiOptions} = 1;
+      }
     }
   }
   elsif ($#param == 0) {
@@ -92,7 +98,7 @@ sub _open {
   #
   my($this, $configfile) = @_;
   my(@content, $c_comment, $longline, $hier, $hierend, @hierdoc);
-
+  local $_;
   my $fh = new FileHandle;
 
   if (-e $configfile) {
@@ -183,7 +189,7 @@ sub _parse {
   #
   my($this, $config, $content) = @_;
   my(@newcontent, $block, $blockname, $grab, $chunk,$block_level);
-
+  local $_;
   foreach (@{$content}) {                                  # loop over content stack
     chomp;
     $chunk++;
@@ -297,7 +303,7 @@ sub _store {
   # internal sub for saving a block
   #
   my($this, $fh, $level, %config) = @_;
-
+  local $_;
   my $indent = "    " x $level;
 
   foreach my $entry (sort keys %config) {
@@ -733,7 +739,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-1.19
+1.20
 
 =cut
 
