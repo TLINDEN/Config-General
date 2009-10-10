@@ -32,7 +32,7 @@ use Carp::Heavy;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = 2.32;
+$Config::General::VERSION = 2.33;
 
 use vars  qw(@ISA @EXPORT_OK);
 use base qw(Exporter);
@@ -48,54 +48,34 @@ sub new {
   # define default options
   my $self = {
 	      SlashIsDirectory      => 0,
-
 	      AllowMultiOptions     => 1,
-
 	      MergeDuplicateOptions => 0,
 	      MergeDuplicateBlocks  => 0,
-
 	      LowerCaseNames        => 0,
-
+	      ApacheCompatible      => 0,
 	      UseApacheInclude      => 0,
 	      IncludeRelative       => 0,
 	      IncludeDirectories    => 0,
 	      IncludeGlob           => 0,
-
 	      AutoLaunder           => 0,
-
 	      AutoTrue              => 0,
-
 	      AutoTrueFlags         => {
 					true  => '^(on|yes|true|1)$',
 					false => '^(off|no|false|0)$',
 				       },
-
 	      DefaultConfig         => {},
-
 	      level                 => 1,
-
 	      InterPolateVars       => 0,
-
 	      InterPolateEnv        => 0,
-
 	      ExtendedAccess        => 0,
-
 	      SplitPolicy           => 'guess', # also possible: whitespace, equalsign and custom
-
 	      SplitDelimiter        => 0,       # must be set by the user if SplitPolicy is 'custom'
-
 	      StoreDelimiter        => 0,       # will be set by me unless user uses 'custom' policy
-
 	      CComments             => 1,       # by default turned on
-
 	      BackslashEscape       => 0,       # by default turned off, allows escaping anything using  the backslash
-
 	      StrictObjects         => 1,       # be strict on non-existent keys in OOP mode
-
 	      StrictVars            => 1,       # be strict on undefined variables in Interpolate mode
-
 	      Tie                   => q(),      # could be set to a perl module for tie'ing new hashes
-
 	      parsed                => 0,       # internal state stuff for variable interpolation
 	      upperkey              => q(),
 	      upperkeys             => [],
@@ -107,102 +87,9 @@ sub new {
   # create the class instance
   bless $self, $class;
 
-
   if ($#param >= 1) {
     # use of the new hash interface!
-    my %conf = @param;
-
-    # save the parameter list for ::Extended's new() calls
-    $self->{Params} = \%conf;
-
-    # be backwards compatible
-    if (exists $conf{-file}) {
-      $self->{ConfigFile} = delete $conf{-file};
-    }
-    if (exists $conf{-hash}) {
-      $self->{ConfigHash} = delete $conf{-hash};
-    }
-
-    # store input, file, handle, or array
-    if (exists $conf{-ConfigFile}) {
-      $self->{ConfigFile} = delete $conf{-ConfigFile};
-    }
-    if (exists $conf{-ConfigHash}) {
-      $self->{ConfigHash} = delete $conf{-ConfigHash};
-    }
-
-    # store search path for relative configs, if any
-    if (exists $conf{-ConfigPath}) {
-      my $configpath = delete $conf{-ConfigPath};
-      $self->{ConfigPath} = ref $configpath eq 'ARRAY' ? $configpath : [$configpath];
-    }
-
-    # handle options which contains values we are needing (strings, hashrefs or the like)
-    if (exists $conf{-String} ) {
-      if (ref(\$conf{-String}) eq 'SCALAR') {
-	if ( $conf{-String}) {
-	  $self->{StringContent} = $conf{-String};
-	}
-	delete $conf{-String};
-      }
-      else {
-	croak "Parameter -String must be a SCALAR!\n";
-      }
-    }
-
-    if (exists $conf{-Tie}) {
-      if ($conf{-Tie}) {
-	$self->{Tie} = delete $conf{-Tie};
-	$self->{DefaultConfig} = $self->_hashref();
-      }
-    }
-
-    if (exists $conf{-FlagBits}) {
-      if ($conf{-FlagBits} && ref($conf{-FlagBits}) eq 'HASH') {
-	$self->{FlagBits} = 1;
-	$self->{FlagBitsFlags} = $conf{-FlagBits};
-      }
-      delete $conf{-FlagBits};
-    }
-
-    if (exists $conf{-DefaultConfig}) {
-      if ($conf{-DefaultConfig} && ref($conf{-DefaultConfig}) eq 'HASH') {
-	$self->{DefaultConfig} = $conf{-DefaultConfig};
-      }
-      elsif ($conf{-DefaultConfig} && ref($conf{-DefaultConfig}) eq q()) {
-	$self->_read($conf{-DefaultConfig}, 'SCALAR');
-	$self->{DefaultConfig} = $self->_parse($self->_hashref(), $self->{content});
-	$self->{content} = ();
-      }
-      delete $conf{-DefaultConfig};
-    }
-
-    # handle options which may either be true or false
-    # allowing "human" logic about what is true and what is not
-    foreach my $entry (keys %conf) {
-      my $key = $entry;
-      $key =~ s/^\-//;
-      if (! exists $self->{$key}) {
-	croak "Unknown parameter: $entry => \"$conf{$entry}\" (key: <$key>)\n";
-      }
-      if ($conf{$entry} =~ /$self->{AutoTrueFlags}->{true}/io) {
-	$self->{$key} = 1;
-      }
-      elsif ($conf{$entry} =~ /$self->{AutoTrueFlags}->{false}/io) {
-	$self->{$key} = 0;
-      }
-      else {
-	# keep it untouched
-	$self->{$key} = $conf{$entry};
-      }
-    }
-
-    if ($self->{MergeDuplicateOptions}) {
-      # override if not set by user
-      if (! exists $conf{-AllowMultiOptions}) {
-	$self->{AllowMultiOptions} = 0;
-      }
-    }
+    $self->_prepare(@param);
   }
   elsif ($#param == 0) {
     # use of the old style
@@ -217,7 +104,126 @@ sub new {
     $self->{parsed} = 1;
   }
 
-  # prepare the split delimiter if needed
+  # find split policy to use for option/value separation
+  $self->_splitpolicy();
+
+  # bless into variable interpolation module if neccessary
+  $self->_blessvars();
+
+  # process as usual
+  if (!$self->{parsed}) {
+    $self->_process();
+  }
+
+  # bless into OOP namespace if required
+  $self->_blessoop();
+
+  return $self;
+}
+
+
+
+sub _process {
+  #
+  # call _read() and _parse() on the given config
+  my($self) = @_;
+
+  if ($self->{DefaultConfig} && $self->{InterPolateVars}) {
+    $self->{DefaultConfig} = $self->_interpolate_hash($self->{DefaultConfig}); # FIXME: _hashref() ?
+  }
+  if (exists $self->{StringContent}) {
+    # consider the supplied string as config file
+    $self->_read($self->{StringContent}, 'SCALAR');
+    $self->{config} = $self->_parse($self->{DefaultConfig}, $self->{content});
+  }
+  elsif (exists $self->{ConfigHash}) {
+    if (ref($self->{ConfigHash}) eq 'HASH') {
+      # initialize with given hash
+      $self->{config} = $self->{ConfigHash};
+      $self->{parsed} = 1;
+    }
+    else {
+      croak "Parameter -ConfigHash must be a hash reference!\n";
+    }
+  }
+  elsif (ref($self->{ConfigFile}) eq 'GLOB' || ref($self->{ConfigFile}) eq 'FileHandle') {
+    # use the file the glob points to
+    $self->_read($self->{ConfigFile});
+    $self->{config} = $self->_parse($self->{DefaultConfig}, $self->{content});
+  }
+  else {
+    if ($self->{ConfigFile}) {
+      # open the file and read the contents in
+      $self->{configfile} = $self->{ConfigFile};
+      if ( file_name_is_absolute($self->{ConfigFile}) ) {
+	# look if is is an absolute path and save the basename if it is absolute
+	my ($volume, $path, undef) = splitpath($self->{ConfigFile});
+	$path =~ s#/$##; # remove eventually existing trailing slash
+	if (! $self->{ConfigPath}) {
+	  $self->{ConfigPath} = [];
+	}
+	unshift @{$self->{ConfigPath}}, catpath($volume, $path, q());
+      }
+      $self->_open($self->{configfile});
+      # now, we parse immdediately, getall simply returns the whole hash
+      $self->{config} = $self->_hashref();
+      $self->{config} = $self->_parse($self->{DefaultConfig}, $self->{content});
+    }
+    else {
+      # hm, no valid config file given, so try it as an empty object
+      $self->{config} = $self->_hashref();
+      $self->{parsed} = 1;
+    }
+  }
+}
+
+
+sub _blessoop {
+  #
+  # bless into ::Extended if neccessary
+  my($self) = @_;
+  if ($self->{ExtendedAccess}) {
+    # we are blessing here again, to get into the ::Extended namespace
+    # for inheriting the methods available overthere, which we doesn't have.
+    bless $self, 'Config::General::Extended';
+    eval {
+      require Config::General::Extended;
+    };
+    if ($EVAL_ERROR) {
+      croak $EVAL_ERROR;
+    }
+  }
+#  return $self;
+}
+
+sub _blessvars {
+  #
+  # bless into ::Interpolated if neccessary
+  my($self) = @_;
+  if ($self->{InterPolateVars} || $self->{InterPolateEnv}) {
+    # InterPolateEnv implies InterPolateVars
+    $self->{InterPolateVars} = 1;
+
+    # we are blessing here again, to get into the ::InterPolated namespace
+    # for inheriting the methods available overthere, which we doesn't have here.
+    bless $self, 'Config::General::Interpolated';
+    eval {
+      require Config::General::Interpolated;
+    };
+    if ($EVAL_ERROR) {
+      croak $EVAL_ERROR;
+    }
+    # pre-compile the variable regexp
+    $self->{regex} = $self->_set_regex();
+  }
+#  return $self;
+}
+
+
+sub _splitpolicy {
+  #
+  # find out what split policy to use
+  my($self) = @_;
   if ($self->{SplitPolicy} ne 'guess') {
     if ($self->{SplitPolicy} eq 'whitespace') {
       $self->{SplitDelimiter} = '\s+';
@@ -245,97 +251,119 @@ sub new {
       $self->{StoreDelimiter} = q(   );
     }
   }
-
-  if ($self->{InterPolateVars} || $self->{InterPolateEnv}) {
-    # InterPolateEnv implies InterPolateVars
-    $self->{InterPolateVars} = 1;
-
-    # we are blessing here again, to get into the ::InterPolated namespace
-    # for inheriting the methods available overthere, which we doesn't have.
-    #
-    bless $self, 'Config::General::Interpolated';
-    eval {
-      require Config::General::Interpolated;
-    };
-    if ($EVAL_ERROR) {
-      croak $EVAL_ERROR;
-    }
-    # pre-compile the variable regexp
-    $self->{regex} = $self->_set_regex();
-  }
-
-  # process as usual
-  if (!$self->{parsed}) {
-    if ($self->{DefaultConfig} && $self->{InterPolateVars}) {
-      $self->{DefaultConfig} = $self->_interpolate_hash($self->{DefaultConfig}); # FIXME: _hashref() ?
-    }
-    if (exists $self->{StringContent}) {
-      # consider the supplied string as config file
-      $self->_read($self->{StringContent}, 'SCALAR');
-      $self->{config} = $self->_parse($self->{DefaultConfig}, $self->{content});
-    }
-    elsif (exists $self->{ConfigHash}) {
-      if (ref($self->{ConfigHash}) eq 'HASH') {
-	# initialize with given hash
-	$self->{config} = $self->{ConfigHash};
-	$self->{parsed} = 1;
-      }
-      else {
-	croak "Parameter -ConfigHash must be a hash reference!\n";
-      }
-    }
-    elsif (ref($self->{ConfigFile}) eq 'GLOB' || ref($self->{ConfigFile}) eq 'FileHandle') {
-      # use the file the glob points to
-      $self->_read($self->{ConfigFile});
-      $self->{config} = $self->_parse($self->{DefaultConfig}, $self->{content});
-    }
-    else {
-      if ($self->{ConfigFile}) {
-	# open the file and read the contents in
-	$self->{configfile} = $self->{ConfigFile};
-	if ( file_name_is_absolute($self->{ConfigFile}) ) {
-	  # look if is is an absolute path and save the basename if it is absolute
-	  my ($volume, $path, undef) = splitpath($self->{ConfigFile});
-	  $path =~ s#/$##; # remove eventually existing trailing slash
-	  if (! $self->{ConfigPath}) {
-	    $self->{ConfigPath} = [];
-	  }
-	  unshift @{$self->{ConfigPath}}, catpath($volume, $path, q());
-	}
-	$self->_open($self->{configfile});
-	# now, we parse immdediately, getall simply returns the whole hash
-	$self->{config} = $self->_hashref();
-	$self->{config} = $self->_parse($self->{DefaultConfig}, $self->{content});
-      }
-      else {
-	# hm, no valid config file given, so try it as an empty object
-	$self->{config} = $self->_hashref();
-	$self->{parsed} = 1;
-      }
-    }
-  }
-
-  #
-  # Submodule handling. Parsing is already done at this point.
-  #
-  if ($self->{ExtendedAccess}) {
-    #
-    # we are blessing here again, to get into the ::Extended namespace
-    # for inheriting the methods available overthere, which we doesn't have.
-    #
-    bless $self, 'Config::General::Extended';
-    eval {
-      require Config::General::Extended;
-    };
-    if ($EVAL_ERROR) {
-      croak $EVAL_ERROR;
-    }
-  }
-
-  return $self;
 }
 
+sub _prepare {
+  #
+  # prepare the class parameters, mangle them, if there
+  # are options to reset or to override, do it here.
+  my ($self, %conf) = @_;
 
+  # save the parameter list for ::Extended's new() calls
+  $self->{Params} = \%conf;
+
+  # be backwards compatible
+  if (exists $conf{-file}) {
+    $self->{ConfigFile} = delete $conf{-file};
+  }
+  if (exists $conf{-hash}) {
+    $self->{ConfigHash} = delete $conf{-hash};
+  }
+
+  # store input, file, handle, or array
+  if (exists $conf{-ConfigFile}) {
+    $self->{ConfigFile} = delete $conf{-ConfigFile};
+  }
+  if (exists $conf{-ConfigHash}) {
+    $self->{ConfigHash} = delete $conf{-ConfigHash};
+  }
+
+  # store search path for relative configs, if any
+  if (exists $conf{-ConfigPath}) {
+    my $configpath = delete $conf{-ConfigPath};
+    $self->{ConfigPath} = ref $configpath eq 'ARRAY' ? $configpath : [$configpath];
+  }
+
+  # handle options which contains values we need (strings, hashrefs or the like)
+  if (exists $conf{-String} ) {
+    if (ref(\$conf{-String}) eq 'SCALAR') {
+      if ( $conf{-String}) {
+	$self->{StringContent} = $conf{-String};
+      }
+      delete $conf{-String};
+    }
+    else {
+      croak "Parameter -String must be a SCALAR!\n";
+    }
+  }
+
+  if (exists $conf{-Tie}) {
+    if ($conf{-Tie}) {
+      $self->{Tie} = delete $conf{-Tie};
+      $self->{DefaultConfig} = $self->_hashref();
+    }
+  }
+
+  if (exists $conf{-FlagBits}) {
+    if ($conf{-FlagBits} && ref($conf{-FlagBits}) eq 'HASH') {
+      $self->{FlagBits} = 1;
+      $self->{FlagBitsFlags} = $conf{-FlagBits};
+    }
+    delete $conf{-FlagBits};
+  }
+
+  if (exists $conf{-DefaultConfig}) {
+    if ($conf{-DefaultConfig} && ref($conf{-DefaultConfig}) eq 'HASH') {
+      $self->{DefaultConfig} = $conf{-DefaultConfig};
+    }
+    elsif ($conf{-DefaultConfig} && ref($conf{-DefaultConfig}) eq q()) {
+      $self->_read($conf{-DefaultConfig}, 'SCALAR');
+      $self->{DefaultConfig} = $self->_parse($self->_hashref(), $self->{content});
+      $self->{content} = ();
+    }
+    delete $conf{-DefaultConfig};
+  }
+
+  # handle options which may either be true or false
+  # allowing "human" logic about what is true and what is not
+  foreach my $entry (keys %conf) {
+    my $key = $entry;
+    $key =~ s/^\-//;
+    if (! exists $self->{$key}) {
+      croak "Unknown parameter: $entry => \"$conf{$entry}\" (key: <$key>)\n";
+    }
+    if ($conf{$entry} =~ /$self->{AutoTrueFlags}->{true}/io) {
+      $self->{$key} = 1;
+    }
+    elsif ($conf{$entry} =~ /$self->{AutoTrueFlags}->{false}/io) {
+      $self->{$key} = 0;
+    }
+    else {
+      # keep it untouched
+      $self->{$key} = $conf{$entry};
+    }
+  }
+
+  if ($self->{MergeDuplicateOptions}) {
+    # override if not set by user
+    if (! exists $conf{-AllowMultiOptions}) {
+      $self->{AllowMultiOptions} = 0;
+    }
+  }
+
+  if ($self->{ApacheCompatible}) {
+    # turn on all apache compatibility options which has
+    # been incorporated during the years...
+    $self->{UseApacheInclude}   = 1;
+    $self->{IncludeRelative}    = 1;
+    $self->{IncludeDirectories} = 1;
+    $self->{IncludeGlob}        = 1;
+    $self->{SpashIsDirectory}   = 1;
+    $self->{SplitPolicy}        = 'whitespace';
+    $self->{CComments}          = 0;
+    $self->{BackslashEscape}    = 1;
+  }
+}
 
 sub getall {
   #
@@ -555,7 +583,7 @@ sub _read {
 
 
     # transform explicit-empty blocks to conforming blocks
-    if (/\s*<([^\/]+?.*?)\/>$/) {
+    if (!$this->{ApacheCompatible} && /\s*<([^\/]+?.*?)\/>$/) {
       my $block = $1;
       if ($block !~ /\"/) {
 	if ($block !~ /\s[^\s]/) {
@@ -1030,7 +1058,7 @@ sub _store {
 
   my $config_string = q();
 
-  foreach my $entry (sort keys %config) {
+  foreach my $entry (keys %config) {
     if (ref($config{$entry}) eq 'ARRAY') {
       foreach my $line (@{$config{$entry}}) {
         if (ref($line) eq 'HASH') {
@@ -1125,7 +1153,7 @@ sub _hashref {
       $wantarray, $evaltext, $is_require, $hints, $bitmask) = caller 0;
   if ($this->{Tie}) {
     eval {
-      eval {require $this->{Tie}};
+      eval qq{require $this->{Tie}};
     };
     if ($EVAL_ERROR) {
       croak q(Could not create a tied hash of type: ) . $this->{Tie} . q(: ) . $EVAL_ERROR;
@@ -1651,6 +1679,35 @@ case you may consider to turn on B<-SlashIsDirectory>.
 Please note that this is a new option (incorporated in version 2.30),
 it may lead to various unexpected sideeffects or other failures.
 You've been warned.
+
+=item B<-ApacheCompatible>
+
+Over the past years a lot of options has been incorporated
+into Config::General to be able to parse real apache configs.
+
+The new B<-ApacheCompatible> option now makes it possible to
+tweak all options in a way that apache configs can be parsed.
+
+This is called "apache compatibility mode" - if you will ever
+have problems with parsing apache configs without this option
+being set, you'll get no help by me. Thanks :)
+
+The following options will be set:
+
+ UseApacheInclude   = 1
+ IncludeRelative    = 1
+ IncludeDirectories = 1
+ IncludeGlob        = 1
+ SpashIsDirectory   = 1
+ SplitPolicy        = 'equalsign'
+ CComments          = 0
+ BackslashEscape    = 1
+
+Take a look into the particular documentation sections what
+those options are doing.
+
+Beside setting some options it also turns off support for
+explicit empty blocks.
 
 =back
 
@@ -2254,7 +2311,7 @@ Thomas Linden <tlinden |AT| cpan.org>
 
 =head1 VERSION
 
-2.32
+2.33
 
 =cut
 

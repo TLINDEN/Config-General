@@ -1,3 +1,28 @@
+ 2.33
+	- fixed rt.cpan.org#26333 - just return $con if env var
+	  is undefined.
+
+	- applied part of a patch supplied by Vincent Rivellino <vince@cuz.cx>
+	  which turns off explicit empty block support if in
+	  apache compatibility mode, see next.
+
+	- added new option -ApacheCompatible, which makes the
+	  module behave really apache compatible by setting the
+	  required options.
+
+	- a little bit re-organized the code, most of the stuff
+	  in new() is now outsourced into several extra subs to
+	  make maintenance of the code easier. The old new() sub
+	  in fact was a nightmare.
+
+	- fixed a bug reported by Otto Hirr <otto.hirr@olabinc.com>:
+	  the _store() sub used sort() to sort the keys, which conflicts
+	  with sorted hashes (eg. tied using Tie::IxHash).
+
+	- fixed tie bug reported by King, Jason <kingj@newsltd.com.au>,
+	  loading of the tie module didn't work.
+
+
  2.32
 	- fixed rt.cpan.org#24232 - import ENV vars only if defined
 

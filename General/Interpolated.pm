@@ -8,7 +8,7 @@
 #
 
 package Config::General::Interpolated;
-$Config::General::Interpolated::VERSION = "2.07";
+$Config::General::Interpolated::VERSION = "2.08";
 
 use strict;
 use Carp;
@@ -97,6 +97,9 @@ sub _interpolate  {
       # may lead to vulnerabilities, by default flag turned off
       if (defined($ENV{$var})) {
 	$con . $ENV{$var};
+      }
+      else {
+	$con;
       }
     }
     else {
@@ -309,7 +312,7 @@ See L<http://www.perl.com/perl/misc/Artistic.html>
 
 =head1 VERSION
 
-2.07
+2.08
 
 =cut
 
