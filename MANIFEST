@@ -38,3 +38,4 @@ README
 example.cfg
 Changelog
 Makefile.PL
+META.yml                                 Module meta-data (added by MakeMaker)

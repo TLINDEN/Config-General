@@ -8,8 +8,15 @@
 
 
 use Data::Dumper;
-use Test::More tests => 49;
+use Test::More tests => 50;
 #use Test::More qw(no_plan);
+
+# ahem, we deliver the test code with a local copy of
+# the Tie::IxHash module so we can do tests on sorted
+# hashes without dependency to Tie::IxHash.
+use lib qw(t);
+use Tie::IxHash;
+
 
 ### 1
 BEGIN { use_ok "Config::General"};
@@ -615,3 +622,19 @@ if ($got47 =~ /\Q$sorted\E/) {
 else {
   fail("Testing sorted save");
 }
+
+
+
+tie my %hash48, "Tie::IxHash";
+my $ostr48 =
+"zeppelin   1
+beach   2
+anathem   3
+mercury   4\n";
+my $cfg48 = new Config::General(
+    -String => $ostr48,
+    -Tie => "Tie::IxHash"
+   );
+%hash48 = $cfg48->getall();
+my $str48 = $cfg48->save_string(\%hash48);
+is( $str48, $ostr48, "tied hash test");

@@ -32,7 +32,7 @@ use Carp::Heavy;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = 2.40;
+$Config::General::VERSION = 2.41;
 
 use vars  qw(@ISA @EXPORT_OK);
 use base qw(Exporter);
@@ -413,6 +413,18 @@ sub _open {
     # Something like: *.conf (or maybe dir/*.conf) was included; expand it and
     # pass each expansion through this method again.
     my @include = grep { -f $_ } bsd_glob($configfile, GLOB_BRACE | GLOB_QUOTE);
+
+    # applied patch by AlexK fixing rt.cpan.org#41030
+    if ( !@include && defined $this->{ConfigPath} ) {
+    	foreach my $dir (@{$this->{ConfigPath}}) {
+		my ($volume, $path, undef) = splitpath($basefile);
+		if ( -d catfile( $dir, $path )  ) {
+	    		push @include, grep { -f $_ } bsd_glob(catfile($dir, $basefile), GLOB_BRACE | GLOB_QUOTE);
+			last;
+		}
+    	}
+    }
+
     if (@include == 1) {
       $configfile = $include[0];
     }
@@ -694,8 +706,23 @@ sub _read {
 	# fetch pathname of base config file, assuming the 1st one is the path of it
 	$path = $this->{ConfigPath}->[0];
       }
-      if (/^\s*<<include\s+(.+?)>>\s*$/i || (/^\s*include\s+(.+?)\s*$/i && $this->{UseApacheInclude})) {
-	$incl_file = $1;
+
+      # bugfix rt.cpan.org#38635: support quoted filenames
+      if ($this->{UseApacheInclude}) {
+         if (/^\s*include\s*(["'])(.*?)(?<!\\)\1$/i) {
+           $incl_file = $2;
+         }
+         elsif (/^\s*include\s+(.+?)\s*$/i) {
+           $incl_file = $1;
+         }
+      }
+      else {
+        if (/^\s*<<include\s+(.+?)>>\s*$/i) {
+          $incl_file = $1;
+        }
+      }
+
+      if ($incl_file) {
 	if ( $this->{IncludeRelative} && $path && !file_name_is_absolute($incl_file) ) {
 	  # include the file from within location of $this->{configfile}
 	  $this->_open( $incl_file, $path );
@@ -709,6 +736,7 @@ sub _read {
 	# standard entry, (option = value)
 	push @{$this->{content}}, $_;
       }
+
     }
 
   }
@@ -1104,14 +1132,14 @@ sub save_file {
     }
     if (!$config) {
       if (exists $this->{config}) {
-	$config_string = $this->_store(0, %{$this->{config}});
+	$config_string = $this->_store(0, $this->{config});
       }
       else {
 	croak "Config::General: No config hash supplied which could be saved to disk!\n";
       }
     }
     else {
-      $config_string = $this->_store(0,%{$config});
+      $config_string = $this->_store(0, $config);
     }
 
     if ($config_string) {
@@ -1137,14 +1165,14 @@ sub save_string {
 
   if (!$config || ref($config) ne 'HASH') {
     if (exists $this->{config}) {
-      return $this->_store(0, %{$this->{config}});
+      return $this->_store(0, $this->{config});
     }
     else {
       croak "Config::General: No config hash supplied which could be saved to disk!\n";
     }
   }
   else {
-    return $this->_store(0, %{$config});
+    return $this->_store(0, $config);
   }
   return;
 }
@@ -1155,7 +1183,7 @@ sub _store {
   #
   # internal sub for saving a block
   #
-  my($this, $level, %config) = @_;
+  my($this, $level, $config) = @_;
   local $_;
   my $indent = q(    ) x $level;
 
@@ -1166,9 +1194,9 @@ sub _store {
     # are obviously the same, but I don't know how to call
     # a foreach() with sort and without sort() on the same
     # line (I think it's impossible)
-    foreach my $entry (sort keys %config) {
-      if (ref($config{$entry}) eq 'ARRAY') {
-        foreach my $line (sort @{$config{$entry}}) {
+    foreach my $entry (sort keys %{$config}) {
+      if (ref($config->{$entry}) eq 'ARRAY') {
+        foreach my $line (sort @{$config->{$entry}}) {
           if (ref($line) eq 'HASH') {
             $config_string .= $this->_write_hash($level, $entry, $line);
           }
@@ -1177,18 +1205,18 @@ sub _store {
           }
         }
       }
-      elsif (ref($config{$entry}) eq 'HASH') {
-        $config_string .= $this->_write_hash($level, $entry, $config{$entry});
+      elsif (ref($config->{$entry}) eq 'HASH') {
+        $config_string .= $this->_write_hash($level, $entry, $config->{$entry});
       }
       else {
-        $config_string .= $this->_write_scalar($level, $entry, $config{$entry});
+        $config_string .= $this->_write_scalar($level, $entry, $config->{$entry});
       }
     }
   }
   else {
-    foreach my $entry (keys %config) {
-      if (ref($config{$entry}) eq 'ARRAY') {
-        foreach my $line (@{$config{$entry}}) {
+    foreach my $entry (keys %{$config}) {
+      if (ref($config->{$entry}) eq 'ARRAY') {
+        foreach my $line (@{$config->{$entry}}) {
           if (ref($line) eq 'HASH') {
             $config_string .= $this->_write_hash($level, $entry, $line);
           }
@@ -1197,11 +1225,11 @@ sub _store {
           }
         }
       }
-      elsif (ref($config{$entry}) eq 'HASH') {
-        $config_string .= $this->_write_hash($level, $entry, $config{$entry});
+      elsif (ref($config->{$entry}) eq 'HASH') {
+        $config_string .= $this->_write_hash($level, $entry, $config->{$entry});
       }
       else {
-        $config_string .= $this->_write_scalar($level, $entry, $config{$entry});
+        $config_string .= $this->_write_scalar($level, $entry, $config->{$entry});
       }
     }
   }
@@ -1266,7 +1294,7 @@ sub _write_hash {
   }
 
   $config_string .= $indent . q(<) . $entry . ">\n";
-  $config_string .= $this->_store($level + 1, %{$line});
+  $config_string .= $this->_store($level + 1, $line);
   $config_string .= $indent . q(</) . $entry . ">\n";
 
   return $config_string
@@ -1373,7 +1401,7 @@ Config::General - Generic Config Module
 
  #
  # the procedural way
- use Config::General;
+ use Config::General qw(ParseConfig SaveConfig SaveConfigString);
  my %config = ParseConfig("rcfile");
 
 =head1 DESCRIPTION
@@ -1686,7 +1714,7 @@ the same Tie class.
 
 Example:
 
- use Config::General;
+ use Config::General qw(ParseConfig);
  use Tie::IxHash;
  tie my %hash, "Tie::IxHash";
  %hash = ParseConfig(
@@ -2494,7 +2522,7 @@ Thomas Linden <tlinden |AT| cpan.org>
 
 =head1 VERSION
 
-2.40
+2.41
 
 =cut
 

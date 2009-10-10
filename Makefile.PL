@@ -19,6 +19,8 @@ WriteMakefile(
 				'FileHandle'            => 0,
 				'File::Spec::Functions' => 0,
 				'File::Glob'            => 0
-			  }	
+			  },
+	($ExtUtils::MakeMaker::VERSION ge '6.31'? 
+	('LICENSE'		=> 'perl', ) : ()),
 );
 

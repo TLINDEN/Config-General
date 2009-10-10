@@ -174,7 +174,11 @@ sub _var_array_stacker {
       next;
     }
     else {
-      $config->{__stack}->{$key} = $config->{$key};
+      #### $config->{__stack}->{$key} = $config->{$key};
+      # removed. a array of scalars (eg: option = [1,2,3]) cannot
+      # be used for interpolation (which one shall we use?!), so
+      # we ignore those types of lists.
+      # found by fbicknel, fixes rt.cpan.org#41570
     }
     push @new, $entry;
   }

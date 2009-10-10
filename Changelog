@@ -1,3 +1,30 @@
+ 2.41
+	- fixed rt.cpan.org#38635. apache-like include now supports
+	  quoted strings.
+
+        - fixed rt.cpan.org#41748. saving config with -tie enabled
+	  now keeps the tie as documented.
+
+	- added unit test for -tie. For this to work, a copy of
+	  Tie::LxHash module is delivered with Config::General
+	  source, but will not installed, in fact, it is only
+	  used for 'make test' (number 50)
+
+	- fixed rt.cpan.org#39159. documentation of functional interface
+          now reflects that qw$method) is now required.
+
+	- applied patch by AlexK fixing rt.cpan.org#41030:
+	  if files are included by means of a glob pattern having the -IncludeGlob
+	  option activated, paths specified by the -ConfigPath option are being
+	  neglected when trying to spot the files. This patch fixes this
+
+	- applied patch by fbicknel, fixes rt.cpan.org#41570: 
+	  An array of scalars (eg: option = [1,2,3]) cannot
+	  be used for interpolation (which element shall we use?!), so
+	  we ignore those types of lists and don't build a __stack for them.
+
+
+
  2.40
 	- fixed SplitDelimiter parser regex, it does no more consider
 	  non-whitespaces (\S+?) as the option name but anything
