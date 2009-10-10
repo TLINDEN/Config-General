@@ -1,3 +1,10 @@
+ 2.05    - fixed bug in ::Extended. It exported for some weird
+           reason I cant remember all of its methods. This included
+	   keys() exists() and delete(), which are perl internals.
+	   If one used keys() on a normal hash, then the ::Extended
+	   own keys() were used instead of perls own one. I removed
+	   the export line.
+
  2.04    - added RFE from rt.cpan.org (ID: 1218). the ::Interpolate
 	   module populates now uses of uninitialized variables in
 	   config files itself instead of just letting perl die().

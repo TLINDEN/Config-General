@@ -19,12 +19,11 @@ use vars qw(@ISA @EXPORT);
 
 # inherit new() and so on from Config::General
 @ISA = qw(Config::General Exporter);
-@EXPORT = qw(obj value hash array is_hash is_array is_scalar exists keys delete configfile);
 
 use strict;
 
 
-$Config::General::Extended::VERSION = "1.7";
+$Config::General::Extended::VERSION = "1.8";
 
 
 sub new {
@@ -496,7 +495,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-1.7
+1.8
 
 =cut
 
