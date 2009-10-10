@@ -1,3 +1,18 @@
+ 2.07    - fixed cpan bugid #1351, SaveConfig contained a deprecated
+           function call which caused the module to croak.
+         - added feature request, if in extended mode (OOP turned
+           on with -ExtendedAccess => 1 access to non-existent keys	
+           caused a croak. While this is still the default behavior
+           it is now possible to turn this off using -StrictObjects => 0.
+         - added this to the related pod section in ::Extended.
+         - fixed bug in new() which caused a couple of errors
+           if the ConfigFile parameter is not set, or is set to
+           undef. In this case it will now simply create an empty
+           object.
+         - fixed related bug in save_file() which will save "" to
+           a file now if the config is uninitialized (i.e. the case
+           mentioned below arrived).
+
  2.06    - added -SplitPolicy, -SplitDelimiter and -StoreDelimiter
 	 - removed whitespace support in keys in the default parser
 	   SplitPolicy 'guess', which was introduced in 2.02. Now

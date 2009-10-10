@@ -17,7 +17,7 @@ use strict;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = "2.06";
+$Config::General::VERSION = "2.07";
 
 use vars  qw(@ISA @EXPORT);
 @ISA    = qw(Exporter);
@@ -66,6 +66,8 @@ sub new {
 	      StoreDelimiter        => 0,       # will be set by me unless user uses 'custom' policy
 
 	      CComments             => 1,       # by default turned on
+
+	      StrictObjects         => 1,       # be strict on non-existent keys in OOP mode
 
 	      parsed                => 0
 	     };
@@ -188,13 +190,20 @@ sub new {
       $self->{config} = $self->_parse($self->{DefaultConfig}, $self->{content});
     }
     else {
-      # open the file and read the contents in
-      $self->{configfile} = $configfile;
-      # look if is is an absolute path and save the basename if it is absolute
-      ($self->{configpath}) = $configfile =~ /^(\/.*)\//;
-      $self->_open($self->{configfile});
-      # now, we parse immdediately, getall simply returns the whole hash
-      $self->{config} = $self->_parse($self->{DefaultConfig}, $self->{content});
+      if ($configfile) {
+	# open the file and read the contents in
+	$self->{configfile} = $configfile;
+	# look if is is an absolute path and save the basename if it is absolute
+	($self->{configpath}) = $configfile =~ /^(\/.*)\//;
+	$self->_open($self->{configfile});
+	# now, we parse immdediately, getall simply returns the whole hash
+	$self->{config} = $self->_parse($self->{DefaultConfig}, $self->{content});
+      }
+      else {
+	# hm, no valid config file given, so try it as an empty object
+	$self->{config} = {};
+	$self->{parsed} = 1;
+      }
     }
   }
 
@@ -660,7 +669,13 @@ sub save_file {
       $config_string = $this->_store(0,%{$config});
     }
 
-    print $fh $config_string;
+    if ($config_string) {
+      print $fh $config_string;
+    }
+    else {
+      # empty config for whatever reason, I don't care
+      print $fh "";
+    }
 
     close $fh;
   }
@@ -805,7 +820,7 @@ sub SaveConfig {
       croak "The second parameter must be a reference to a hash!";
     }
     else {
-      (new Config::General($hash))->save($file);
+      (new Config::General($hash))->save_file($file);
     }
   }
 }
@@ -1100,6 +1115,11 @@ input. See L<Config::General::Interpolated> for more informations.
 If set to a true value, you can use object oriented (extended) methods to
 access the parsed config. See L<Config::General::Extended> for more informations.
 
+=item B<-StrictObjects>
+
+By default this is turned on, which causes Config::General to croak with an
+error if you try to access a non-existent key using the oop-way. If you turn
+B<-StrictObjects> off (by setting to 0 or "no") it will just return undef.
 
 =item B<-SplitPolicy>
 
@@ -1671,7 +1691,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-2.06
+2.07
 
 =cut
 

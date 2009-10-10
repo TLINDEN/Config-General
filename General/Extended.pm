@@ -242,7 +242,13 @@ sub AUTOLOAD {
     }
   }
   else {
-    croak "\"$key\" does not exist within current object\n";
+    if ($this->{StrictObjects}) {
+      croak "\"$key\" does not exist within current object\n";
+    }
+    else {
+      # be cool
+      return undef;
+    }
   }
 }
 
@@ -465,6 +471,10 @@ Now we read it in and process it:
 This notation supports only scalar values! You need to make sure, that the block
 <person> does not contain any subblock or multiple identical options(which will become
 an array after parsing)!
+
+If you access a non-existent key this way, Config::General will croak an error.
+You can turn this behavior off by setting B<-StrictObjects> to 0 or "no". In
+this case undef will be returned.
 
 Of course you can use this kind of methods for writing data too:
 
