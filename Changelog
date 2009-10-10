@@ -1,3 +1,7 @@
+ 2.21
+	 - fixed bug in new() used $this instead of $self for empty
+	   hashref creation if no config file given.
+
  2.20
 	 - fixed bug reported by Stefano di Sandro <stedis@ulis.it>: in
  	   OOP mode (extended access) the obj() method returned the whole

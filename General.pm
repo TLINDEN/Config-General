@@ -5,7 +5,7 @@
 #          config values from a given file and
 #          return it as hash structure
 #
-# Copyright (c) 2000-2002 Thomas Linden <tom@daemon.de>.
+# Copyright (c) 2000-2003 Thomas Linden <tom@daemon.de>.
 # All Rights Reserved. Std. disclaimer applies.
 # Artificial License, same as perl itself. Have fun.
 #
@@ -18,7 +18,7 @@ use strict;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = "2.20";
+$Config::General::VERSION = "2.21";
 
 use vars  qw(@ISA @EXPORT);
 @ISA    = qw(Exporter);
@@ -256,7 +256,7 @@ sub new {
       }
       else {
 	# hm, no valid config file given, so try it as an empty object
-	$self->{config} = $this->_hashref();
+	$self->{config} = $self->_hashref();
 	$self->{parsed} = 1;
       }
     }
@@ -1928,7 +1928,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-2.20
+2.21
 
 =cut
 
