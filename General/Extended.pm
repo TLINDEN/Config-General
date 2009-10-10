@@ -23,7 +23,7 @@ use vars qw(@ISA @EXPORT);
 use strict;
 
 
-$Config::General::Extended::VERSION = "1.10";
+$Config::General::Extended::VERSION = "1.11";
 
 
 sub new {
@@ -540,7 +540,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-1.10
+1.11
 
 =cut
 

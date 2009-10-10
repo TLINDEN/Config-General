@@ -1,5 +1,5 @@
 package Config::General::Interpolated;
-$Config::General::Interpolated::VERSION = "2.02";
+$Config::General::Interpolated::VERSION = "2.03";
 
 use strict;
 use Carp;
@@ -283,7 +283,7 @@ See L<http://www.perl.com/perl/misc/Artistic.html>
 
 =head1 VERSION
 
-2.01
+2.02
 
 =cut
 
