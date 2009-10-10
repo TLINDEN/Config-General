@@ -1,3 +1,17 @@
+ 2.03    - fixed bug in the _parse() routine (better: design flaw).
+           after the last patch for allowing whitespaces in
+	   option names, it had a problem with here-docs which
+	   contained equal signs. option/value splitting resulted
+	   in weird output.
+
+	 - as a side effect of the bug fix below it is now
+	   possible to use equal signs inside quoted values, which
+	   will then be ignored, thus not used for splitting
+	   the line into an option/value assignment.
+
+	 - added a new test, which tests for all possible notations
+	   of option/value lines.
+
  2.02    - added patch by Jens Heunemann, which allows to use
            whitespaces in option names.
 

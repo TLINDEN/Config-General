@@ -6,7 +6,7 @@
 #
 # Under normal circumstances every test should succeed.
 
-BEGIN { $| = 1; print "1..18\n";}
+BEGIN { $| = 1; print "1..19\n";}
 use lib "blib/lib";
 use Config::General;
 use Data::Dumper;
@@ -170,7 +170,23 @@ else {
 
 
 
-
+# testing various otion/value assignemnt notations
+my $conf19 = new Config::General(-file => "t/cfg.19");
+my %h19 = $conf19->getall();
+my $works = 1;
+foreach my $key (keys %h19) {
+  if ($key =~ /\s/) {
+    $works = 0;
+  }
+}
+if ($works) {
+  print "ok\n";
+  print STDERR " .. ok # Testing various otion/value assignemnt notations\n";
+}
+else {
+  print "19 not ok\n";
+  print STDERR "19 not ok\n";
+}
 
 
 

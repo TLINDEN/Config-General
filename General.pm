@@ -17,7 +17,7 @@ use strict;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = "2.02";
+$Config::General::VERSION = "2.03";
 
 use vars  qw(@ISA @EXPORT);
 @ISA    = qw(Exporter);
@@ -344,24 +344,30 @@ sub _parse {
   my($this, $config, $content) = @_;
   my(@newcontent, $block, $blockname, $grab, $chunk,$block_level);
   local $_;
+  my $indichar = chr(182);  # ¶, inserted by _open, our here-doc indicator
+
   foreach (@{$content}) {                                  # loop over content stack
     chomp;
     $chunk++;
     $_ =~ s/^\s*//;                                        # strip spaces @ end and begin
     $_ =~ s/\s*$//;
 
-    # my ($option,$value) = split /\s*=\s*|\s+/, $_, 2;      # option/value assignment, = is optional
+    #
+    # build option value assignment, split current input
+    # using whitespace, equal sign or optionally here-doc
+    # separator (ascii 182).
+    my ($option,$value);
+    if (/$indichar/) {
+      ($option,$value) = split /\s*$indichar\s*/, $_, 2;   # separated by heredoc-finding in _open()
+    }
+    elsif (/^[^\"]+?=/) {
+      ($option,$value) = split /\s*=\s*/, $_, 2;           # using equal if not inside quotes
+    }
+    else {
+      ($option,$value) = split /\s+/, $_, 2;               # option/value assignment, = is optional
+    }
 
-     my ($option,$value);
-     if (/=/) {
-       ($option,$value) = split /\s*=\s*/, $_, 2;      # option/value assignment, = is optional
-     }
-     else {
-       ($option,$value) = split /\s+/, $_, 2;          # option/value assignment, = is optional
-     }
 
-    my $indichar = chr(182);                               # ¶, inserted by _open, our here-doc indicator
-    $value =~ s/^$indichar// if($value);                   # a here-doc begin, remove indicator
     if ($value && $value =~ /^"/ && $value =~ /"$/) {
       $value =~ s/^"//;                                    # remove leading and trailing "
       $value =~ s/"$//;
@@ -1575,7 +1581,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-2.02
+2.03
 
 =cut
 
