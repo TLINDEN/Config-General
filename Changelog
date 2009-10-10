@@ -1,3 +1,31 @@
+ 2.08    - added option -StrictVars, which causes Interpolate.pm to
+	   ignore undefined variables and replaces such occurences
+	   with the emppty string.
+
+	 - applied patch by Stefan Moser <sm@open.ch>, which fixes
+	   some weird bevavior if -MergeDuplicateOptions was turned
+	   on, the parser croaked regardless -MergeDuplicateBlocks
+	   was set or not. Now the two options behave almost independent
+	   from each other, which allows one to merge duplicate
+	   blocks but duplicate options not.
+
+	 - changed behavior of setting -MergeDuplicateOptions which
+	   implied in previous versions -AllowMultiOptions to be
+	   false. Now this will only be done if the user does not
+	   set -AllowMultiOptions by himself. This allows one to
+	   have duplicate blocks which will be turned into an
+	   array but duplicate options to be merged.
+
+	 - applied patch by Matthias Pitzl <matthias@izb.net>, which	
+	   fixes a bug at parsing apache-like include directive
+	   (Include ...). It did not properly trim unnecessary whitespaces
+	   so that the filename to be included became invalid. This
+	   bug espessially occurred if one saved a hash containing
+	   a key/value pair like this: "Include" => "/etc/grs.cfg",
+	   which was then saved as "Include   /etc/grs.cfg", the
+	   parser returned "  /etc/grs.cfg" which, of course, does
+	   not exists. odd...
+
  2.07    - fixed cpan bugid #1351, SaveConfig contained a deprecated
            function call which caused the module to croak.
          - added feature request, if in extended mode (OOP turned

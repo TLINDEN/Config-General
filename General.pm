@@ -17,7 +17,7 @@ use strict;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = "2.07";
+$Config::General::VERSION = "2.08";
 
 use vars  qw(@ISA @EXPORT);
 @ISA    = qw(Exporter);
@@ -68,6 +68,8 @@ sub new {
 	      CComments             => 1,       # by default turned on
 
 	      StrictObjects         => 1,       # be strict on non-existent keys in OOP mode
+
+	      StrictVars            => 1,       # be strict on undefined variables in Interpolate mode
 
 	      parsed                => 0
 	     };
@@ -135,8 +137,10 @@ sub new {
     }
 
     if ($self->{MergeDuplicateOptions}) {
-      # override
-      $self->{AllowMultiOptions} = 0;
+      # override if not set by user
+      if (! exists $conf{-AllowMultiOptions}) {
+	$self->{AllowMultiOptions} = 0;
+      }
     }
   }
   elsif ($#param == 0) {
@@ -357,7 +361,7 @@ sub _read {
       else {
 	# look for include statement(s)
 	my $incl_file;
-	if (/^\s*<<include (.+?)>>\s*$/i || (/^\s*include (.+?)\s*$/i && $this->{UseApacheInclude})) {
+	if (/^\s*<<include\s+(.+?)>>\s*$/i || (/^\s*include\s+(.+?)\s*$/i && $this->{UseApacheInclude})) {
 	  $incl_file = $1;
 	  if ($this->{IncludeRelative} && $this->{configpath} && $incl_file !~ /^\//) {
 	    # include the file from within location of $this->{configfile}
@@ -376,7 +380,6 @@ sub _read {
   }
   return 1;
 }
-
 
 
 
@@ -487,14 +490,14 @@ sub _parse {
       else {                                               # calling myself recursively, end of $block reached, $block_level is 0
 	if ($blockname) {                                  # a named block, make it a hashref inside a hash within the current node
 	  if (exists $config->{$block}->{$blockname}) {    # the named block already exists, make it an array
-	    if (! $this->{AllowMultiOptions}) {
-	      croak "Named block \"<$block $blockname>\" occurs more than once (level: $this->{level}, chunk $chunk)!\n";
+	    if ($this->{MergeDuplicateBlocks}) {
+	      # just merge the new block with the same name as an existing one into
+              # this one.
+	      $config->{$block}->{$blockname} = $this->_parse($config->{$block}->{$blockname}, \@newcontent);
 	    }
 	    else {
-	      if ($this->{MergeDuplicateBlocks}) {
-		# just merge the new block with the same name as an existing one into
-		# this one.
-		$config->{$block}->{$blockname} = $this->_parse($config->{$block}->{$blockname}, \@newcontent);
+	      if (! $this->{AllowMultiOptions}) {
+		croak "Named block \"<$block $blockname>\" occurs more than once (level: $this->{level}, chunk $chunk)!\n";
 	      }
 	      else {                                       # preserve existing data
 		my $savevalue = $config->{$block}->{$blockname};
@@ -517,14 +520,14 @@ sub _parse {
 	}
 	else {                                             # standard block
 	  if (exists $config->{$block}) {                  # the block already exists, make it an array
-	    if (! $this->{AllowMultiOptions}) {
-	      croak "Block \"<$block>\" occurs more than once (level: $this->{level}, chunk $chunk)!\n";
-	    }
-	    else {
-	      if ($this->{MergeDuplicateBlocks}) {
-		# just merge the new block with the same name as an existing one into
-		# this one.
-		$config->{$block} = $this->_parse($config->{$block}, \@newcontent);
+	    if ($this->{MergeDuplicateBlocks}) {
+	      # just merge the new block with the same name as an existing one into
+              # this one.
+	      $config->{$block} = $this->_parse($config->{$block}, \@newcontent);
+            }
+            else {
+	      if (! $this->{AllowMultiOptions}) {
+	        croak "Block \"<$block>\" occurs more than once (level: $this->{level}, chunk $chunk)!\n";
 	      }
 	      else {
 		my $savevalue = $config->{$block};
@@ -996,7 +999,9 @@ If set to a true value, then duplicate options will be merged. That means, if th
 same option occurs more than once, the last one will be used in the resulting
 config hash.
 
-Setting this option implies B<-AllowMultiOptions == false>.
+Setting this option implies B<-AllowMultiOptions == false> unless you set
+B<-AllowMultiOptions> explicit to 'true'. In this case duplicate blocks are
+allowed and put into an array but dupclicate options will be merged.
 
 
 =item B<-AutoTrue>
@@ -1449,12 +1454,13 @@ this:
 
 As you can see, there is only one hash "dir->{blah}" containing multiple
 "user" entries. As you can also see, turning on  B<-MergeDuplicateBlocks>
-does not affect scalar options (i.e. "option = value").
+does not affect scalar options (i.e. "option = value"). In fact you can
+tune merging of duplicate blocks and options independent from each other.
 
 If you don't want to allow more than one identical options, you may turn it off
-by setting the flag I<AllowMutliOptions> in the B<new()> method to "no".
+by setting the flag I<AllowMultiOptions> in the B<new()> method to "no".
 If turned off, Config::General will complain about multiple occuring options
-whit identical names!
+with identical names!
 
 
 
@@ -1691,7 +1697,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-2.07
+2.08
 
 =cut
 

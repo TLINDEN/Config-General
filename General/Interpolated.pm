@@ -1,5 +1,5 @@
 package Config::General::Interpolated;
-$Config::General::Interpolated::VERSION = "1.4";
+$Config::General::Interpolated::VERSION = "1.5";
 
 use strict;
 use Carp;
@@ -77,7 +77,13 @@ sub _vars {
 	    $con . $v;
 	  }
 	  else {
-	    croak "Use of uninitialized variable \$" . $var . "\n";
+	    if ($this->{StrictVars}) {
+	      croak "Use of uninitialized variable \$" . $var . "\n";
+	    }
+	    else {
+	      # be cool
+	      $con;
+	    }
 	  }
 	}egx;
       }
@@ -216,7 +222,7 @@ See L<http://www.perl.com/perl/misc/Artistic.html>
 
 =head1 VERSION
 
-1.4
+1.5
 
 =cut
 

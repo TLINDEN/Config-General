@@ -88,6 +88,11 @@ COPYRIGHT
        This library is free software; you can redistribute it
        and/or modify it under the same terms as Perl itself.
 
+HOMEPAGE
+
+       The homepage of Config::General is located at:
+
+          http://www.daemon.de/config-general/
 
 BUGS
        make test does currently not catch all possible scenarios.
@@ -98,4 +103,4 @@ AUTHOR
 
 
 VERSION
-	2.07
+	2.08
