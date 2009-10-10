@@ -1,3 +1,8 @@
+ 2.17
+	 - added File::Spec support which makes the modules more portable
+	   (i.e. on win32 systems),
+	   as suggested by Peter Tandler <Peter.Tandler@ipsi.fhg.de>.
+
  2.16
 	 - applied patch by Michael Gray <mjg17@eng.cam.ac.uk> which
 	   fixes a bug in the Interpolate.pm submodule. A second variable,

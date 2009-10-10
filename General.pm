@@ -13,11 +13,12 @@
 package Config::General;
 
 use FileHandle;
+use File::Spec::Functions;
 use strict;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = "2.16";
+$Config::General::VERSION = "2.17";
 
 use vars  qw(@ISA @EXPORT);
 @ISA    = qw(Exporter);
@@ -227,8 +228,12 @@ sub new {
       if ($self->{ConfigFile}) {
 	# open the file and read the contents in
 	$self->{configfile} = $self->{ConfigFile};
-	# look if is is an absolute path and save the basename if it is absolute
-	($self->{configpath}) = $self->{ConfigFile} =~ /^(\/.*)\//;
+	if ( file_name_is_absolute($self->{ConfigFile}) ) {
+	  # look if is is an absolute path and save the basename if it is absolute
+	  my ($dummi, $path, $dummi) = splitpath($self->{ConfigFile});
+	  $path =~ s#/$##; # remove eventually existing trailing slash
+	  $self->{configpath} = $path;
+	}
 	$self->_open($self->{configfile});
 	# now, we parse immdediately, getall simply returns the whole hash
 	$self->{config} = $self->_parse($self->{DefaultConfig}, $self->{content});
@@ -429,9 +434,9 @@ sub _read {
       my $incl_file;
       if (/^\s*<<include\s+(.+?)>>\s*$/i || (/^\s*include\s+(.+?)\s*$/i && $this->{UseApacheInclude})) {
 	$incl_file = $1;
-	if ($this->{IncludeRelative} && $this->{configpath} && $incl_file !~ /^\//) {
+	if ( $this->{IncludeRelative} && $this->{configpath} && !file_name_is_absolute($incl_file) ) {
 	  # include the file from within location of $this->{configfile}
-	  $this->_open($this->{configpath} . "/" . $incl_file);
+	  $this->_open( catfile($this->{configpath}, $incl_file) );
 	}
 	else {
 	  # include the file from within pwd, or absolute
@@ -1783,7 +1788,7 @@ I recommend you to read the following documentations, which are supplied with pe
 
 =head1 COPYRIGHT
 
-Copyright (c) 2000-2002 Thomas Linden
+Copyright (c) 2000-2003 Thomas Linden
 
 This library is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
@@ -1800,7 +1805,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-2.16
+2.17
 
 =cut
 
