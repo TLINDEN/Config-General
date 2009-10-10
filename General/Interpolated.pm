@@ -2,13 +2,13 @@
 # Config::General::Interpolated - special Class based on Config::General
 #
 # Copyright (c) 2001 by Wei-Hon Chen <plasmaball@pchome.com.tw>.
-# Copyright (c) 2000-2007 by Thomas Linden <tlinden |AT| cpan.org>.
+# Copyright (c) 2000-2009 by Thomas Linden <tlinden |AT| cpan.org>.
 # All Rights Reserved. Std. disclaimer applies.
 # Artificial License, same as perl itself. Have fun.
 #
 
 package Config::General::Interpolated;
-$Config::General::Interpolated::VERSION = "2.10";
+$Config::General::Interpolated::VERSION = "2.11";
 
 use strict;
 use Carp;
@@ -123,6 +123,14 @@ sub _interpolate_hash {
   # called directly by Config::General::new()
   #
   my ($this, $config) = @_;
+
+  # bugfix rt.cpan.org#46184, moved code from _interpolate() to here.
+  if ($this->{InterPolateEnv} && defined(%ENV)) {
+    # may lead to vulnerabilities, by default flag turned off
+    for my $key (keys %ENV){
+      $config->{__stack}->{$key}=$ENV{$key};
+    }
+  }
 
   $config = $this->_var_hash_stacker($config);
 
@@ -253,7 +261,7 @@ Config::General::Interpolated - Parse variables within Config files
 =head1 DESCRIPTION
 
 This is an internal module which makes it possible to interpolate
-perl style variables in your config file (i.e. C<$variable>
+Perl style variables in your config file (i.e. C<$variable>
 or C<${variable}>).
 
 Normally you don't call it directly.
@@ -313,7 +321,7 @@ been used instead with the value of "unix".
 
 Variables inside double quotes will be interpolated, but variables
 inside single quotes will B<not> interpolated. This is the same
-behavior as you know of perl itself.
+behavior as you know of Perl itself.
 
 In addition you can surround variable names with curly braces to
 avoid misinterpretation by the parser.
@@ -331,7 +339,7 @@ L<Config::General>
 =head1 COPYRIGHT
 
 Copyright 2001 by Wei-Hon Chen E<lt>plasmaball@pchome.com.twE<gt>.
-Copyright 2002-2007 by Thomas Linden <tlinden |AT| cpan.org>.
+Copyright 2002-2009 by Thomas Linden <tlinden |AT| cpan.org>.
 
 This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
@@ -340,7 +348,7 @@ See L<http://www.perl.com/perl/misc/Artistic.html>
 
 =head1 VERSION
 
-2.09
+2.11
 
 =cut
 

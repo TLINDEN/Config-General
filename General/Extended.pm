@@ -315,7 +315,7 @@ sub AUTOLOAD {
     }
     else {
       # be cool
-      return "";
+      return undef; # bugfix rt.cpan.org#42331
     }
   }
 }

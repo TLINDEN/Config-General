@@ -8,7 +8,7 @@
 
 
 use Data::Dumper;
-use Test::More tests => 50;
+use Test::More tests => 51;
 #use Test::More qw(no_plan);
 
 # ahem, we deliver the test code with a local copy of
@@ -123,6 +123,18 @@ else {
   fail("Testing variable interpolation");
 }
 
+### 16.a
+# testing variable interpolation with %ENV use
+my $env = "/home/theunexistent";
+$ENV{HOME} = $env;
+my $conf16a = new Config::General(-ConfigFile => "t/cfg.16a", -InterPolateVars => 1, -InterPolateEnv => 1, -StrictVars => 0);
+my %h16a = $conf16a->getall();
+if($h16a{etc}->{log} eq "$env/log/logfile") {
+  pass("Testing environment variable interpolation");
+}
+else {
+  fail("Testing environment variable interpolation");
+}
 
 
 ### 17
@@ -291,7 +303,7 @@ TEST
 );
 my %h26 = $conf26->getall;
 my %expected_h26 = (
-  foo => { 0 => { 0 => '' } },
+  foo => { 0 => { 0 => undef } },
 );
 is_deeply(\%h26, \%expected_h26, "testing 0-values in block names");
 
@@ -405,7 +417,7 @@ my %conf35 = Config::General::ParseConfig(
   -SplitDelimiter => '\s*::\s*'
 );
 my %expect35 = (
-		'var3 =  gamma' => '',
+		'var3 =  gamma' => undef,
 		'var1' => 'alpha',
 		'var2' => 'beta'
 	      );

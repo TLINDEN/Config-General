@@ -1,3 +1,32 @@
+ 2.43
+	- fixed rt.cpan.org#40925, $indichar replaced by internal
+	  configuration variable EOFseparator, which contains
+	  a 256 bit SHA checksum of the date I fixed the bug.
+	  This will prevent future conflicts hopefully. In addition
+	  it makes it possible to make it customizable, if neccessary,
+	  in a future release.
+
+	- fixed rt.cpan.org#42721, return undef for empty values
+
+	- fixed rt.cpan.org#42331, return undef for empty objects
+
+	- fixed rt.cpan.org#44600, comments after blockname
+	  causes parser failure.
+
+	- fixed rt.cpan.org#42287, whitespace at beginning or end
+	  of a quoted value gets lost after save().
+
+	- fixed rt.cpan.org#46184, variables that were not previously
+	  defined are deleted when -InterPolateEnv is enabled. 
+
+	- fixed bug in config loader for FileHandle objects, it
+	  supports now any compatible object. Hint by Ingo Schmiegel.
+
+	- applied spelling- and speedup patches by Ville Skyttä.
+
+	- applied documentation patch by Jordan Macdonald.
+
+
  2.42
 	- dist tarball for 2.41 missed t/Tie/LxHash.pm. Dammit.
           the File to the MANIFEST.
