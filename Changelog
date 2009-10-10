@@ -1,3 +1,18 @@
+ 2.40
+	- fixed SplitDelimiter parser regex, it does no more consider
+	  non-whitespaces (\S+?) as the option name but anything
+	  before the delimiter (.+?), this fixes bug rt.cpan.org#36607,
+	  the fix of 2.39 were not sufficient. Thanks to
+	  Jeffrey Ratcliffe for pointing it out.
+
+	- added new parameter -SaveSorted. The default value is 0,
+	  that means configs will be saved unsorted (as always),
+	  however if you want to save it sorted, turn this parameter
+	  to 1. Thanks to Herbert Breunung for the hint.
+
+	- added complexity test, which checks a combination
+	  of various complex features of the parser.
+
  2.39
 	- fixed rt.cpan.org#35122. This one was one of the most
 	  intriguing bugs I've ever observed in my own code. The

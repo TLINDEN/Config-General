@@ -32,7 +32,7 @@ use Carp::Heavy;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = 2.39;
+$Config::General::VERSION = 2.40;
 
 use vars  qw(@ISA @EXPORT_OK);
 use base qw(Exporter);
@@ -80,7 +80,8 @@ sub new {
 	      Tie                   => q(),      # could be set to a perl module for tie'ing new hashes
 	      parsed                => 0,       # internal state stuff for variable interpolation
 	      files                 => {},      # which files we have read, if any
-	      UTF8                  => 0
+	      UTF8                  => 0,
+	      SaveSorted            => 0
 	     };
 
   # create the class instance
@@ -661,7 +662,7 @@ sub _read {
     }
     else {
       # no guess, use one of the configured strict split policies
-      if (/^\s*(\S+?)($this->{SplitDelimiter})<<\s*(.+?)\s*$/) {
+      if (/^\s*(.+?)($this->{SplitDelimiter})<<\s*(.+?)\s*$/) {
 	$hier    = $1;  # the actual here-doc variable name
 	$hierend = $3;  # the here-doc identifier, i.e. "EOF"
 	next;
@@ -1160,22 +1161,48 @@ sub _store {
 
   my $config_string = q();
 
-  foreach my $entry (keys %config) {
-    if (ref($config{$entry}) eq 'ARRAY') {
-      foreach my $line (@{$config{$entry}}) {
-        if (ref($line) eq 'HASH') {
-	  $config_string .= $this->_write_hash($level, $entry, $line);
-        }
-        else {
-	  $config_string .= $this->_write_scalar($level, $entry, $line);
+  if($this->{SaveSorted}) {
+    # ahm, well this might look strange because the two loops
+    # are obviously the same, but I don't know how to call
+    # a foreach() with sort and without sort() on the same
+    # line (I think it's impossible)
+    foreach my $entry (sort keys %config) {
+      if (ref($config{$entry}) eq 'ARRAY') {
+        foreach my $line (sort @{$config{$entry}}) {
+          if (ref($line) eq 'HASH') {
+            $config_string .= $this->_write_hash($level, $entry, $line);
+          }
+          else {
+            $config_string .= $this->_write_scalar($level, $entry, $line);
+          }
         }
       }
+      elsif (ref($config{$entry}) eq 'HASH') {
+        $config_string .= $this->_write_hash($level, $entry, $config{$entry});
+      }
+      else {
+        $config_string .= $this->_write_scalar($level, $entry, $config{$entry});
+      }
     }
-    elsif (ref($config{$entry}) eq 'HASH') {
-      $config_string .= $this->_write_hash($level, $entry, $config{$entry});
-    }
-    else {
-      $config_string .= $this->_write_scalar($level, $entry, $config{$entry});
+  }
+  else {
+    foreach my $entry (keys %config) {
+      if (ref($config{$entry}) eq 'ARRAY') {
+        foreach my $line (@{$config{$entry}}) {
+          if (ref($line) eq 'HASH') {
+            $config_string .= $this->_write_hash($level, $entry, $line);
+          }
+          else {
+            $config_string .= $this->_write_scalar($level, $entry, $line);
+          }
+        }
+      }
+      elsif (ref($config{$entry}) eq 'HASH') {
+        $config_string .= $this->_write_hash($level, $entry, $config{$entry});
+      }
+      else {
+        $config_string .= $this->_write_scalar($level, $entry, $config{$entry});
+      }
     }
   }
 
@@ -1832,6 +1859,11 @@ explicit empty blocks.
 If turned on, all files will be opened in utf8 mode. This may
 not work properly with older versions of perl.
 
+=item B<-SaveSorted>
+
+If you want to save configs in a sorted manner, turn this
+parameter on. It is not enabled by default.
+
 =back
 
 
@@ -2462,7 +2494,7 @@ Thomas Linden <tlinden |AT| cpan.org>
 
 =head1 VERSION
 
-2.39
+2.40
 
 =cut
 

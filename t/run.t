@@ -8,7 +8,7 @@
 
 
 use Data::Dumper;
-use Test::More tests => 47;
+use Test::More tests => 49;
 #use Test::More qw(no_plan);
 
 ### 1
@@ -487,3 +487,131 @@ my $expect46 = {
 		 'foo' => 'bar'
 		};
 is_deeply($expect46, \%conf46, "Variables inside single quotes");
+
+
+# complexity test
+# check the combination of various features
+my $conf47 = new Config::General(
+				 -ConfigFile => "t/complex.cfg",
+				 -InterPolateVars => 1,
+				 -DefaultConfig => { this => "that", default => "imported" },
+				 -MergeDuplicateBlocks => 1,
+				 -MergeDuplicateOptions => 1,
+				 -StrictVars => 1,
+				 -SplitPolicy => 'custom',
+				 -SplitDelimiter => '\s*=\s*',
+				 -IncludeGlob => 1,
+				 -IncludeAgain => 1,
+				 -IncludeRelative => 1,
+				 -AutoTrue => 1,
+				 -FlagBits => { someflags => { LOCK => 1, RW => 2, TAINT => 3 } },
+				 -StoreDelimiter => ' = ',
+				 -SlashIsDirectory => 1,
+				 -SaveSorted => 1
+				);
+my %conf47 = $conf47->getall();
+my $expect47 = {
+          'var3' => 'blah',
+          'z1' => {
+                    'blak' => '11111',
+                    'nando' => '9999'
+                  },
+          'a' => {
+                   'b' => {
+                            'm' => {
+                                     '9323' => {
+                                                 'g' => '000',
+                                                 'long' => 'another long line'
+                                               }
+                                   },
+                            'x' => '9323',
+                            'z' => 'rewe'
+                          }
+                 },
+          'onflag' => 1,
+          'var2' => 'zeppelin',
+          'ignore' => '\\$set',
+          'quote' => 'this should be \'kept: $set\' and not be \'$set!\'',
+          'x5' => {
+                    'klack' => '11111'
+                  },
+          'set' => 'blah',
+          'line' => 'along line',
+          'this' => 'that',
+          'imported' => 'got that from imported config',
+		'someflags' => {
+                           'RW' => 2,
+                           'LOCK' => 1,
+                           'TAINT' => 3
+                         },
+          'var1' => 'zero',
+          'offflag' => 0,
+          'cmd' => 'mart@gw.intx.foo:22',
+          'default' => 'imported',
+          'host' => 'gw.intx.foo',
+          'nando' => '11111',
+          'auch ätzendes' => 'muss gehen',
+          'Directory' => {
+                           '/' => {
+                                    'mode' => '755'
+                                  }
+                         },
+          'hansa' => {
+                       'z1' => {
+                                 'blak' => '11111',
+                                 'nando' => '9999'
+                               },
+                       'Directory' => {
+                                        '/' => {
+                                                 'mode' => '755'
+                                               }
+                                      },
+                       'block' => {
+                                    '0' => {
+                                             'value' => 0
+                                           }
+                                  },
+                       'x5' => {
+                                 'klack' => '11111'
+                               },
+                       'Files' => {
+                                    '~/*.pl' => {
+                                                  'Options' => '+Indexes'
+                                                }
+                                  },
+                       'nando' => '11111'
+                     },
+          'block' => {
+                       '0' => {
+                                'value' => 0
+                              }
+                     },
+          'Files' => {
+                       '~/*.pl' => {
+                                     'Options' => '+Indexes'
+                                   }
+                     },
+          'a [[weird]] heredoc' => 'has to
+  work
+  too!'
+};
+
+is_deeply($expect47, \%conf47, "complexity test");
+
+# check if sorted save works
+$conf47->save_file("t/complex.out", \%conf47);
+open T, "<t/complex.out";
+my $got47 = join '', <T>;
+close T;
+my $sorted = qq(
+imported = got that from imported config
+line = along line
+nando = 11111
+offflag = 0
+onflag = 1);
+if ($got47 =~ /\Q$sorted\E/) {
+  pass("Testing sorted save");
+}
+else {
+  fail("Testing sorted save");
+}
