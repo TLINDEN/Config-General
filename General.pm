@@ -17,7 +17,7 @@ use FileHandle;
 use strict;
 use Carp;
 
-$Config::General::VERSION = "1.26";
+$Config::General::VERSION = "1.27";
 
 sub new {
   #
@@ -143,7 +143,7 @@ sub _read {
   my(@stuff, @content, $c_comment, $longline, $hier, $hierend, @hierdoc);
   local $_;
 
-  if ($flag eq "SCALAR") {
+  if ($flag && $flag eq "SCALAR") {
     if (ref($fh) eq "ARRAY") {
       @stuff = @{$fh};
     }
@@ -1011,7 +1011,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-1.26
+1.27
 
 =cut
 

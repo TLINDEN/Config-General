@@ -1,3 +1,6 @@
+ 1.27:   - "make test" complained about uninitialized value
+           in :146, which is now fixed.
+
  1.26:   - added filehandle capability to -file.
          - added -String parameter to new(), which allows
            one to supply the whole config as a string.
