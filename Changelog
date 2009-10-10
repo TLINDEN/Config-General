@@ -1,3 +1,16 @@
+ 2.30
+	 - fixed rt.cpan.org bug #7957, added ·
+	
+	 - applied patch by Branislav Zahradnik
+	   <brano@blueorange.sk> which adds -InterPolateEnv.
+	   This allows to use environment variables too. It
+	   implies -InterPolateVars.
+
+	 - added object list capability for the ::Extended::obj()
+	   method. If a certain key points to an array of
+	   hashrefs, then the whole arrayref is returned.
+	   Suggested by Alan Hodgkinson <alan@softxs.ch>.
+
  2.29
 	 - applied patch by brian@kronos.com via rt.cpan.org
 	   #11211.

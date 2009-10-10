@@ -8,7 +8,7 @@
 #
 
 package Config::General::Interpolated;
-$Config::General::Interpolated::VERSION = "2.05";
+$Config::General::Interpolated::VERSION = "2.06";
 
 use strict;
 use Carp;
@@ -88,6 +88,10 @@ sub _interpolate  {
     $var = lc($var) if $this->{LowerCaseNames};
     if (exists $this->{stack}->{ $this->{level} }->{ $prevkey }->{$var}) {
       $con . $this->{stack}->{ $this->{level} }->{ $prevkey }->{$var};
+    }
+    elsif ($this->{InterPolateEnv}) {
+      # may lead to vulnerabilities, by default flag turned off
+      $con . $ENV{$var};
     }
     else {
       if ($this->{StrictVars}) {
@@ -299,7 +303,7 @@ See L<http://www.perl.com/perl/misc/Artistic.html>
 
 =head1 VERSION
 
-2.05
+2.06
 
 =cut
 

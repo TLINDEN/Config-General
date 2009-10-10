@@ -26,7 +26,7 @@ use Carp::Heavy;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = "2.29";
+$Config::General::VERSION = "2.30";
 
 use vars  qw(@ISA @EXPORT);
 @ISA    = qw(Exporter);
@@ -41,6 +41,8 @@ sub new {
 
   # define default options
   my $self = {
+	      SlashIsDirectory      => 0,
+
 	      AllowMultiOptions     => 1,
 
 	      MergeDuplicateOptions => 0,
@@ -65,6 +67,8 @@ sub new {
 	      level                 => 1,
 
 	      InterPolateVars       => 0,
+
+	      InterPolateEnv        => 0,
 
 	      ExtendedAccess        => 0,
 
@@ -212,8 +216,10 @@ sub new {
     $self->{StoreDelimiter} = "   " if(!$self->{StoreDelimiter});
   }
 
-  if ($self->{InterPolateVars}) {
-    #
+  if ($self->{InterPolateVars} || $self->{InterPolateEnv}) {
+    # InterPolateEnv implies InterPolateVars
+    $self->{InterPolateVars} = 1;
+
     # we are blessing here again, to get into the ::InterPolated namespace
     # for inheriting the methods available overthere, which we doesn't have.
     #
@@ -485,6 +491,18 @@ sub _read {
     # transform explicit-empty blocks to conforming blocks
     if (/\s*<([^\/]+?.*?)\/>$/) {
       my $block = $1;
+      if ($block !~ /\"/) {
+	if ($block !~ /\s[^\s]/) {
+	  # fix of bug 7957, add quotation to pure slash at the
+	  # end of a block so that it will be considered as directory
+	  # unless the block is already quoted or contains whitespaces
+	  # and no quotes.
+	  if ($this->{SlashIsDirectory}) {
+	    push @{$this->{content}}, '<' . $block . '"/">';
+	    next;
+	  }
+	}
+      }
       my $orig  = $_;
       $orig     =~ s/\/>$/>/;
       $block    =~ s/\s\s*.*$//;
@@ -1413,6 +1431,13 @@ Example:
 If set to a true value, variable interpolation will be done on your config
 input. See L<Config::General::Interpolated> for more informations.
 
+=item B<-InterPolateEnv>
+
+If set to a true value, environment variables can be used in
+configs.
+
+This implies B<-InterPolateVars>.
+
 =item B<-ExtendedAccess>
 
 If set to a true value, you can use object oriented (extended) methods to
@@ -1486,6 +1511,47 @@ If you turn on this parameter, a backslash can be used to escape any special
 character within configurations.
 
 By default it is turned off.
+
+
+=item B<-SlashIsDirectory>
+
+If you turn on this parameter, a single slash as the last character
+of a named block will be considered as a directory name.
+
+By default this flag is turned off, which makes the module somewhat
+incompatible to apache configs, since such a setup will be normally
+considered as an explicit empty block, just as XML defines it.
+
+For example, if you have the following config:
+
+ <Directory />
+   Index index.awk
+ </Directory>
+
+you will get such an error message from the parser:
+
+ EndBlock "</Directory>" has no StartBlock statement (level: 1, chunk 10)!
+
+This is caused by the fact that the config chunk below will be
+internally converted to:
+
+ <Directory><Directory />
+   Index index.awk
+ </Directory>
+
+Now there is one '</Directory>' too much. The proper solution is
+to use quotation to circumvent this error:
+
+ <Directory "/">
+   Index index.awk
+ </Directory>
+
+However, a raw apache config comes without such quotes. In this
+case you may consider to turn on B<-SlashIsDirectory>.
+
+Please note that this is a new option (incorporated in version 2.30),
+it may lead to various unexpected sideeffects or other failures.
+You've been warned.
 
 =back
 
@@ -2070,7 +2136,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-2.29
+2.30
 
 =cut
 

@@ -23,7 +23,7 @@ use vars qw(@ISA @EXPORT);
 use strict;
 
 
-$Config::General::Extended::VERSION = "2.00";
+$Config::General::Extended::VERSION = "2.01";
 
 
 sub new {
@@ -39,23 +39,51 @@ sub obj {
   # or an empty object if the content of $key is empty.
   #
   my($this, $key) = @_;
+
+  # just create the empty object, just in case
+  my $empty = $this->SUPER::new( -ExtendedAccess => 1, -ConfigHash => {}, %{$this->{Params}} );
+
   if (exists $this->{config}->{$key}) {
-    if (!$this->{config}->{$key} || ref($this->{config}->{$key}) ne "HASH") {
+    if (!$this->{config}->{$key}) {
+      # be cool, create an empty object!
+      return $empty
+    }
+    elsif (ref($this->{config}->{$key}) eq "ARRAY") {
+      my @objlist;
+      foreach my $element (@{$this->{config}->{$key}}) {
+	if (ref($element) eq "HASH") {
+	  push @objlist,
+	    $this->SUPER::new( -ExtendedAccess => 1,
+			       -ConfigHash     => $element,
+			       %{$this->{Params}} );
+	}
+	else {
+	  if ($this->{StrictObjects}) {
+	    croak "element in list \"$key\" does not point to a hash reference!\n";
+	  }
+	  # else: skip this element
+	}
+      }
+      return \@objlist;
+    }
+    elsif (ref($this->{config}->{$key}) eq "HASH") {
+      return $this->SUPER::new( -ExtendedAccess => 1,
+				-ConfigHash => $this->{config}->{$key}, %{$this->{Params}} );
+    }
+    else {
+      # nothing supported
       if ($this->{StrictObjects}) {
 	croak "key \"$key\" does not point to a hash reference!\n";
       }
       else {
 	# be cool, create an empty object!
-	return $this->SUPER::new( -ExtendedAccess => 1, -ConfigHash => {}, %{$this->{Params}} );
+	return $empty;
       }
-    }
-    else {
-      return $this->SUPER::new( -ExtendedAccess => 1, -ConfigHash => $this->{config}->{$key}, %{$this->{Params}} );
     }
   }
   else {
     # even return an empty object if $key does not exist
-    return $this->SUPER::new( -ExtendedAccess => 1, -ConfigHash => {}, %{$this->{Params}} );
+    return $empty;
   }
 }
 
@@ -388,6 +416,27 @@ operations, i.e.:
 
 See the discussion on B<AUTOLOAD METHODS> below.
 
+If the key points to a list of hashes, a list of objects will be
+returned. Given the following example config:
+
+ <option>
+   name = max
+ </option>
+ <option>
+   name = bea
+ </option>
+
+you could write code like this to access the list the OOP way:
+
+ my $objlist = $conf->obj("option");
+ foreach my $option (@{$objlist}) {
+  print $option->name;
+ }
+
+Please note that the list will be returned as a reference to an array.
+
+Empty elements or non-hash elements of the list, if any, will be skipped.
+
 =item hash('key')
 
 This method returns a hash(if it B<is> one!) from the config which is referenced by
@@ -540,7 +589,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-2.00
+2.01
 
 =cut
 
