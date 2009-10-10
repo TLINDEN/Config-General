@@ -24,7 +24,13 @@ use vars qw(@ISA @EXPORT);
 use strict;
 
 
-$Config::General::Extended::VERSION = "1.6";
+$Config::General::Extended::VERSION = "1.7";
+
+
+sub new {
+  croak "Deprecated method Config::General::Extended::new() called.\n"
+       ."Use Config::General::new() instead and set the -ExtendedAccess flag.\n";
+}
 
 
 sub obj {
@@ -36,14 +42,14 @@ sub obj {
   my($this, $key) = @_;
   if (exists $this->{config}->{$key}) {
     if (!$this->{config}->{$key}) {
-      return $this->new( () ); # empty object!
+      return $this->SUPER::new( -ExtendedAccess => 1, -ConfigHash => {} ); # empty object!
     }
     else {
-      return $this->new( $this->{config}->{$key} );
+      return $this->SUPER::new( -ExtendedAccess => 1, -ConfigHash => $this->{config}->{$key} );
     }
   }
   else {
-    return $this->new( $this->{config} );
+    return $this->SUPER::new( -ExtendedAccess => 1, -ConfigHash => $this->{config} );
   }
 }
 
@@ -263,7 +269,7 @@ Config::General::Extended - Extended access to Config files
  use Config::General;
 
  $conf = new Config::General(
-    -file           => 'configfile',
+    -ConfigFile     => 'configfile',
     -ExtendedAccess => 1
  );
 
@@ -490,7 +496,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-1.6
+1.7
 
 =cut
 

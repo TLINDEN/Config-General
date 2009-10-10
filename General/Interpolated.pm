@@ -1,5 +1,5 @@
 package Config::General::Interpolated;
-$Config::General::Interpolated::VERSION = "1.1";
+$Config::General::Interpolated::VERSION = "1.3";
 
 use strict;
 use Carp;
@@ -17,14 +17,9 @@ sub new {
   # overwrite new() with our own version
   # and call the parent class new()
   #
-  my $class = shift;
-  my $self  = $class->SUPER::new(@_);
 
-  $self->{regex}  = $self->_set_regex();
-
-  $self->{config} = $self->_vars($self->{config}, {});
-
-  return $self;
+  croak "Deprecated method Config::General::Interpolated::new() called.\n"
+       ."Use Config::General::new() instead and set the -InterPolateVars flag.\n";
 }
 
 
@@ -62,7 +57,7 @@ sub _vars {
     # collect values that don't need to be substituted first
     while (my ($key, $value) = each %{$config}) {
 	$varstack{$key} = $value
-	    unless ref($value) or $value =~ $this->{regex};
+	    unless ref($value) or $value =~ /$this->{regex}/;
     }
 
     my $sub_interpolate = sub {
@@ -102,8 +97,10 @@ sub _vars {
     # traverse the hierarchy part
     while (my ($key, $value) = each %{$config}) {
       # this is not a scalar recursive call to myself
-      _vars($value, {%{$stack}, %varstack})
-	if ref($value) eq 'HASH';
+      if (ref($value) eq 'HASH') {
+	# called via Gonfig::General procedural
+	_vars($this, $value, {%{$stack}, %varstack});
+      }
     }
 
     return $config;
@@ -123,7 +120,7 @@ Config::General::Interpolated - Parse variables within Config files
 
  use Config::General;
  $conf = new Config::General(
-    -file            => 'configfile',
+    -CinfigFile      => 'configfile',
     -InterPolateVars => 1
  );
 
@@ -213,7 +210,7 @@ See L<http://www.perl.com/perl/misc/Artistic.html>
 
 =head1 VERSION
 
-This document describes version 1.1 of B<Config::General::Interpolated>.
+1.3
 
 =cut
 

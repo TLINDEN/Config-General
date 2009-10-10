@@ -47,6 +47,36 @@ INSTALLATION
 	t/cfg.*
 
 
+UPDATE
+
+	If you are updating from version 1.xx, you might be interested,
+	that some things in the API has changed, which might force you
+	to change your application code. These changes were necessary
+	to clean up the module interface. Now it has a consistent
+	"look and feel" and behaves more naturally. Therefore historic
+	remains were removed.
+
+	Here is a short list:
+
+	   o it is no more possible to use Config::General::Extended
+	     and Config::General::Interpolated directly. Instead use
+	     Config::General and turn on -InterPolateVars and
+	     -ExtendedAccess respectively.
+
+	   o the method NoMultiOptions() is deprecated. Set the parameter
+	     -AllowMultiOptions to false when calling new() to create
+	     a new Config::General object.
+
+	   o the method save() is deprecated. Use save_file() or
+	     save_string() instead.
+
+	   o the parameter -file is deprecated. Use -ConfigFile instead.
+
+	   o the parameter -hash is deprecated. Use -ConfigHash instead.
+
+	For a more detailed explanation of changes refer to the Changelog.
+
+
 COPYRIGHT
        Config::General
        Config::General::Extended
@@ -68,4 +98,4 @@ AUTHOR
 
 
 VERSION
-	2.01
+	2.02

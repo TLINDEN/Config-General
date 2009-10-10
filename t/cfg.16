@@ -1,5 +1,6 @@
 # variable interpolation test
-
+me=blah
+pr=$me/blubber
 <vars>
   base = /usr
   uid  = 501

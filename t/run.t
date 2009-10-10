@@ -1,4 +1,4 @@
-#
+# -*-perl-*-
 # testscript for Config::General Classes by Thomas Linden
 #
 # needs to be invoked using the command "make test" from
@@ -9,14 +9,11 @@
 BEGIN { $| = 1; print "1..18\n";}
 use lib "blib/lib";
 use Config::General;
-use Config::General::Extended;
-use Config::General::Interpolated;
 use Data::Dumper;
+
 print "ok\n";
-print STDERR " .. ok # loading:
-                                    Config::General
-   	            	            Config::General::Extended
-      		                    Config::General::Interpolated\n";
+print STDERR " .. ok # loading Config::General\n";
+
 
 foreach (2..7) {
   &p("t/cfg." . $_, $_);
@@ -24,7 +21,7 @@ foreach (2..7) {
 
 my $conf = new Config::General("t/cfg.8");
 my %hash = $conf->getall;
-$conf->save("t/cfg.out", %hash);
+$conf->save_file("t/cfg.out");
 
 my $copy = new Config::General("t/cfg.out");
 my %copyhash = $copy->getall;
@@ -46,7 +43,9 @@ else {
 
 ############## Extended Tests #################
 
-$conf = new Config::General::Extended("t/test.rc");
+$conf = new Config::General(
+			    -ExtendedAccess => 1,
+			    -ConfigFile     => "t/test.rc");
 print "ok\n";
 print STDERR " .. ok # Creating a new object from config file\n";
 
@@ -54,10 +53,11 @@ print STDERR " .. ok # Creating a new object from config file\n";
 
 
 # now test the new notation of new()
-my $conf2 = new Config::General::Extended(
-                                          -file              => "t/test.rc",
-                                          -AllowMultiOptions => "yes"
-                                        );
+my $conf2 = new Config::General(
+				-ExtendedAccess    => 1,
+				-ConfigFile        => "t/test.rc",
+				-AllowMultiOptions => "yes"
+			       );
 print "ok\n";
 print STDERR " .. ok # Creating a new object using the hash parameter way\n";
 
@@ -99,14 +99,19 @@ if ($conf->is_hash("domain")) {
 print "ok\n";
 print STDERR " .. ok # Using keys() and values() \n";
 
+
+
+
 # test AUTOLOAD methods
-my $conf3 = new Config::General::Extended( { name => "Moser", prename => "Hannes"} 
-);
+my $conf3 = new Config::General(
+				-ExtendedAccess => 1,
+				-ConfigHash     => { name => "Moser", prename => "Hannes"}
+				);
 my $n = $conf3->name;
 my $p = $conf3->prename;
 $conf3->name("Meier");
 $conf3->prename("Max");
-$conf3->save("t/test.cfg");
+$conf3->save_file("t/test.cfg");
 
 print "ok\n";
 print STDERR " .. ok # Using AUTOLOAD methods\n";
@@ -115,9 +120,8 @@ print STDERR " .. ok # Using AUTOLOAD methods\n";
 
 
 # testing variable interpolation
-my $conf16 = new Config::General::Interpolated("t/cfg.16");
+my $conf16 = new Config::General(-ConfigFile => "t/cfg.16", -InterPolateVars => 1);
 my %h16 = $conf16->getall();
-
 if($h16{etc}->{log} eq "/usr/local/log/logfile") {
    print "ok\n";
    print STDERR " .. ok # Testing variable interpolation\n";
@@ -157,7 +161,7 @@ my $conf18 = new Config::General(
 my %h18 = $conf18->getall();
 if ($h18{home} eq "/home/users") {
   print "ok\n";
-  print STDERR " .. ok # Testing value pre-setting using a hash\n";
+  print STDERR " .. ok # Testing value pre-setting using a string\n";
 }
 else {
   print "18 not ok\n";

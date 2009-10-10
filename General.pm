@@ -17,7 +17,7 @@ use strict;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = "2.01";
+$Config::General::VERSION = "2.02";
 
 use vars  qw(@ISA @EXPORT);
 @ISA    = qw(Exporter);
@@ -350,7 +350,16 @@ sub _parse {
     $_ =~ s/^\s*//;                                        # strip spaces @ end and begin
     $_ =~ s/\s*$//;
 
-    my ($option,$value) = split /\s*=\s*|\s+/, $_, 2;      # option/value assignment, = is optional
+    # my ($option,$value) = split /\s*=\s*|\s+/, $_, 2;      # option/value assignment, = is optional
+
+     my ($option,$value);
+     if (/=/) {
+       ($option,$value) = split /\s*=\s*/, $_, 2;      # option/value assignment, = is optional
+     }
+     else {
+       ($option,$value) = split /\s+/, $_, 2;          # option/value assignment, = is optional
+     }
+
     my $indichar = chr(182);                               # ¶, inserted by _open, our here-doc indicator
     $value =~ s/^$indichar// if($value);                   # a here-doc begin, remove indicator
     if ($value && $value =~ /^"/ && $value =~ /"$/) {
@@ -956,7 +965,7 @@ Multiple flags can be used, separated by the pipe character |.
 Well, an example will clarify things:
 
  my $conf = new Config::General(
-         -file => "rcfile",
+         -ConfigFile => "rcfile",
          -FlagBits => {
               Mode => {
                  CLEAR    => 1,
@@ -1417,7 +1426,7 @@ open included files from the directory, where the configfile resides. You need t
 the option B<-IncludeRelative> (see B<new()>) if you want that. An example:
 
  my $conf = Config::General(
-                             -file => "/etc/crypt.d/server.cfg"
+                             -ConfigFile => "/etc/crypt.d/server.cfg"
                              -IncludeRelative => 1
                            );
 
@@ -1502,7 +1511,7 @@ allowed to the B<new()> method of the standard interface.
 Example:
 
  use Config::General;
- my %config = ParseConfig(-file => "rcfile", -AutoTrue => 1);
+ my %config = ParseConfig(-ConfigFile => "rcfile", -AutoTrue => 1);
 
 
 =item B<SaveConfig()>
@@ -1526,7 +1535,7 @@ method B<save_string()> does.
 Example:
 
  use Config::General;
- my %config = ParseConfig(-file => "rcfile");
+ my %config = ParseConfig(-ConfigFile => "rcfile");
  .. # change %config something
  my $content = SaveConfigString(\%config);
 
@@ -1566,7 +1575,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-2.01
+2.02
 
 =cut
 
