@@ -44,7 +44,7 @@ INSTALLATION
 
 
 COPYRIGHT
-       Copyright (c) 2000-2001 Thomas Linden
+       Copyright (c) 2000-2002 Thomas Linden
 
        This library is free software; you can redistribute it
        and/or modify it under the same terms as Perl itself.
@@ -59,4 +59,4 @@ AUTHOR
 
 
 VERSION
-	1.27
+	1.29

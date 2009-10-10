@@ -16,8 +16,13 @@ package Config::General;
 use FileHandle;
 use strict;
 use Carp;
+use Exporter;
 
-$Config::General::VERSION = "1.28";
+$Config::General::VERSION = "1.29";
+
+use vars  qw(@ISA @EXPORT);
+@ISA    = qw(Exporter);
+@EXPORT = qw(ParseConfig SaveConfig SaveConfigString);
 
 sub new {
   #
@@ -65,6 +70,21 @@ sub new {
     if (exists $conf{-MergeDuplicateBlocks}) {
       if ($conf{-MergeDuplicateBlocks}) {
 	$self->{MergeDuplicateBlocks} = 1;
+      }
+    }
+    if (exists $conf{-AutoTrue}) {
+      if ($conf{-AutoTrue}) {
+	$self->{AutoTrue} = 1;
+	$self->{AutoTrueFlags} = {
+				  true  => '^(on|yes|true|1)$',
+				  false => '^(off|no|false|0)$',
+				 };
+      }
+    }
+    if (exists $conf{-FlagBits}) {
+      if ($conf{-FlagBits} && ref($conf{-FlagBits}) eq "HASH") {
+	$self->{FlagBits} = 1;
+	$self->{FlagBitsFlags} = $conf{-FlagBits};
       }
     }
   }
@@ -291,7 +311,7 @@ sub _parse {
 	  if (exists $config->{$option}) {
 	    croak "Option \"$option\" occurs more than once (level: $this->{level}, chunk $chunk)!\n";
 	  }
-	  $config->{$option} = $value;
+	  $config->{$option} = $this->_parse_value($option, $value);
 	}
 	else {
 	  if (exists $config->{$option}) {	           # value exists more than once, make it an array
@@ -300,10 +320,10 @@ sub _parse {
 	      delete $config->{$option};
 	      push @{$config->{$option}}, $savevalue;
 	    }
-	    push @{$config->{$option}}, $value;            # it's already an array, just push
+	    push @{$config->{$option}}, $this->_parse_value($option, $value); # it's already an array, just push
 	  }
 	  else {
-	    $config->{$option} = $value;                   # standard config option, insert key/value pair into node
+	    $config->{$option} = $this->_parse_value($option, $value); # standard config option, insert key/value pair into node
 	  }
 	}
       }
@@ -401,6 +421,44 @@ sub _parse {
 
 
 
+sub _parse_value {
+  #
+  # parse the value if value parsing is turned on
+  # by either -AutoTrue and/or -FlagBits
+  # otherwise just return the given value unchanged
+  #
+  my($this, $option, $value) =@_;
+
+  # make true/false values to 1 or 0 (-AutoTrue)
+  if ($this->{AutoTrue}) {
+    if ($value =~ /$this->{AutoTrueFlags}->{true}/io) {
+      $value = 1;
+    }
+    elsif ($value =~ /$this->{AutoTrueFlags}->{false}/io) {
+      $value = 0;
+    }
+  }
+
+  # assign predefined flags or undef for every flag | flag ... (-FlagBits)
+  if ($this->{FlagBits}) {
+    if (exists $this->{FlagBitsFlags}->{$option}) {
+      my %__flags = map { $_ => 1 } split /\s*\|\s*/, $value;
+      foreach my $flag (keys %{$this->{FlagBitsFlags}->{$option}}) {
+	if (exists $__flags{$flag}) {
+	  $__flags{$flag} = $this->{FlagBitsFlags}->{$option}->{$flag};
+	}
+	else {
+	  $__flags{$flag} = undef;
+	}
+      }
+      $value = \%__flags;
+    }
+  }
+  return $value;
+}
+
+
+
 
 
 
@@ -416,58 +474,175 @@ sub NoMultiOptions {
 }
 
 
-
 sub save {
+  #
+  # this is the old version of save() whose API interface
+  # has been changed. I'm very sorry 'bout this.
+  #
+  # I'll try to figure out, if it has been called correctly
+  # and if yes, feed the call to Save(), otherwise croak.
+  #
+  my($this, $one, @two) = @_;
+
+  if ( (@two && $one) && ( (scalar @two) % 2 == 0) ) {
+    # @two seems to be a hash
+    my %h = @two;
+    $this->Save($one, \%h);
+  }
+  else {
+    croak "The save() method is deprecated. Use the new save_file() method instead!";
+  }
+}
+
+
+sub save_file {
   #
   # save the config back to disk
   #
-  my($this,$file, %config) = @_;
+  my($this, $file, $config) = @_;
   my $fh = new FileHandle;
+  my $config_string;
 
-  open $fh, ">$file" or croak "Could not open $file!($!)\n";
-  $this->_store($fh, 0,%config);
+  if (!$file) {
+    croak "Filename is required!";
+  }
+  else {
+    open $fh, ">$file" or croak "Could not open $file!($!)\n";
+
+    if (!$config) {
+      if (exists $this->{config}) {
+	$config_string = $this->_store(0, %{$this->{config}});
+      }
+      else {
+	croak "No config hash supplied which could be saved to disk!\n";
+      }
+    }
+    else {
+      $config_string = $this->_store(0,%{$config});
+    }
+
+    print $fh $config_string;
+
+    close $fh;
+  }
 }
+
+
+
+sub save_string {
+  #
+  # return the saved config as a string
+  #
+  my($this, $config) = @_;
+
+  if (!$config || ref($config) ne "HASH") {
+    if (exists $this->{config}) {
+      return $this->_store(0, %{$this->{config}});
+    }
+    else {
+      croak "No config hash supplied which could be saved to disk!\n";
+    }
+  }
+  else {
+    return $this->_store(0,%config);
+  }
+}
+
 
 
 sub _store {
   #
   # internal sub for saving a block
   #
-  my($this, $fh, $level, %config) = @_;
+  my($this, $level, %config) = @_;
   local $_;
   my $indent = "    " x $level;
+
+  my $config_string;
 
   foreach my $entry (sort keys %config) {
     if (ref($config{$entry}) eq "ARRAY") {
       foreach my $line (@{$config{$entry}}) {
 	$line =~ s/#/\\#/g;
-	print $fh $indent . $entry . "   " . $line . "\n";
+	$config_string .= $indent . $entry . "   " . $line . "\n";
       }
     }
     elsif (ref($config{$entry}) eq "HASH") {
-      print $fh $indent . "<" . $entry . ">\n";
-      $this->_store($fh, $level + 1, %{$config{$entry}});
-      print $fh $indent . "</" . $entry . ">\n";
+      $config_string .= $indent . "<" . $entry . ">\n";
+      $config_string .= $this->_store($level + 1, %{$config{$entry}});
+      $config_string .= $indent . "</" . $entry . ">\n";
     }
     else {
       # scalar
       if ($config{$entry} =~ /\n/) {
 	# it is a here doc
 	my @lines = split /\n/, $config{$entry};
-	print $fh $indent . $entry . " <<EOF\n";
+	$config_string .= $indent . $entry . " <<EOF\n";
 	foreach my $line(@lines) {
-	  print $fh $indent . $line . "\n";
+	  $config_string .= $indent . $line . "\n";
 	}
-	print $fh $indent . "EOF\n";
+	$config_string .= $indent . "EOF\n";
       }
       else {
 	$config{$entry} =~ s/#/\\#/g;
-	print $fh $indent . $entry . "   " . $config{$entry}  . "\n";
+	$config_string .= $indent . $entry . "   " . $config{$entry}  . "\n";
       }
+    }
+  }
+
+  return $config_string;
+}
+
+
+
+#
+# Procedural interface
+#
+sub ParseConfig {
+  #
+  # @_ may contain everything which is allowed for new()
+  #
+  return (new Config::General(@_))->getall();
+}
+
+sub SaveConfig {
+  #
+  # 2 parameters are required, filename and hash ref
+  #
+  my ($file, $hash) = @_;
+
+  if (!$file || !$hash) {
+    croak "SaveConfig(): filename and hash argument required.";
+  }
+  else {
+    if (ref($hash) ne "HASH") {
+      croak "The second parameter must be a reference to a hash!";
+    }
+    else {
+      (new Config::General($hash))->save($file);
     }
   }
 }
 
+sub SaveConfigString {
+  #
+  # same as SaveConfig, but return the config,
+  # instead of saving it
+  #
+  my ($hash) = @_;
+
+  if (!$hash) {
+    croak "SaveConfigString(): Hash argument required.";
+  }
+  else {
+    if (ref($hash) ne "HASH") {
+      croak "The parameter must be a reference to a hash!";
+    }
+    else {
+      return (new Config::General($hash))->save_string();
+    }
+  }
+}
 
 # keep this one
 1;
@@ -482,12 +657,16 @@ Config::General - Generic Config Module
 
 =head1 SYNOPSIS
 
+ #
+ # the OOP way
  use Config::General;
  $conf = new Config::General("rcfile");
  my %config = $conf->getall;
 
- # or
- $conf = new Config::General(\%somehash);
+ #
+ # the procedural way
+ use Config::General;
+ my %config = ParseConfig("rcfile");
 
 =head1 DESCRIPTION
 
@@ -515,74 +694,197 @@ Possible ways to call B<new()>:
 
  $conf = new Config::General(\%somehash);
 
- $conf = new Config::General(
-                       -file                 => "rcfile",
-                       -AllowMultiOptions    => "no",
-                       -LowerCaseNames       => "yes",
-                       -UseApacheInclude     => 1,
-                       -IncludeRelative      => 1,
-                       -MergeDuplicateBlocks => 1,
-                            );
+ $conf = new Config::General( %options ); # see below for description of possible options
 
- $conf = new Config::General( -hash => \%somehash );
-
- $conf = new Config::General( -String => $complete_config );
-
- $conf = new Config::General( -String => \@config_lines );
-
- $conf = new Config::General( -file => \*FD );
 
 This method returns a B<Config::General> object (a hash blessed into "Config::General" namespace.
 All further methods must be used from that returned object. see below.
 
 You can use the new style with hash parameters or the old style which is of course
-still supported. Possible parameters are:
+still supported. Possible parameters to B<new()> are:
 
- a filename of a configfile
+* a filename of a configfile, which will be opened and parsed by the parser
 
- a hash reference
+or
 
- or a hash with one or more of the following keys set:
+* a hash reference, which will be used as the config.
 
-    -file               - a filename or a filehandle
-    -hash               - a hash reference.
-    -String             - a string which contains a whole config, or an arrayref
-                          containing the whole config line by line.
-    -AllowMultiOptions  - if the value is "no", then multiple
-                          identical options are disallowed.
-    -LowerCaseNames     - if true (1 or "yes") then all options found
-                          in the config will be converted to lowercase.
-                          This allows you to provide case-in-sensitive configs
-    -UseApacheInclude   - consider "include ..." as valid include statement (just
-                          like the well known apache include statement).
-    -IncludeRelative    - included files with a relative path (i.e. "cfg/blah.conf")
-                          will be opened from within the location of the configfile,
-                          if the configfile has an absolute pathname (i.e.
-                          "/etc/main.conf").
-    -MergeDuplicateBlocks - the default behavior of Config::General is to create an
-                            array if some junk in a config appears more than once. If
-                            you turn this option on (set it to 1), then duplicate blocks,
-                            that means blocks and named blocks will be merged into
-                            a single one (see below for more details on this).
-
-
-=item NoMultiOptions()
-
-This method only exists for compatibility reasons.
-Now you should set the new() flag B<-AllowMultiOptions>
-to "no".
+An alternative way to call B<new()> is supplying an option- hash with one or more of
+the following keys set:
 
 =over
 
-=item The old description:
-This Turns off the feature of allwing multiple options with identical names.
-The default behavior is to create an array if an option occurs more than
-once. But under certain circumstances you may not be willed to allow that.
-In this case use this method before you call B<getall> to turn it off.
+=item B<-file>
+
+A filename or a filehandle, i.e.:
+
+ -file => "rcfile" or -file => \$FileHandle
+
+
+
+=item B<-hash>
+
+A hash reference, which will be used as the config, i.e.:
+
+ -hash => \%somehash
+
+
+
+=item B<-String>
+
+A string which contains a whole config, or an arrayref
+containing the whole config line by line.
+The parser will parse the contents of the string instead
+of a file. i.e:
+
+ -String => $complete_config
+
+it is also possible to feed an array reference to -String:
+
+ -String => \@config_lines
+
+
+
+=item B<-AllowMultiOptions>
+
+If the value is "no", then multiple identical options are disallowed.
+The default is "yes".
+i.e.:
+
+ -AllowMultiOptions => "no"
+
+see B<IDENTICAL OPTIONS> for details.
+
+=item B<-LowerCaseNames>
+
+If set to a true value, then all options found in the config will be converted
+to lowercase. This allows you to provide case-in-sensitive configs. The
+values of the options will B<not> lowercased.
+
+
+
+=item B<-UseApacheInclude>
+
+If set to a true value, the parser will consider "include ..." as valid include
+statement (just like the well known apache include statement).
+
+
+
+=item B<-IncludeRelative>
+
+If set to a true value, included files with a relative path (i.e. "cfg/blah.conf")
+will be opened from within the location of the configfile instead from within the
+location of the script($0). This works only if the configfile has a absolute pathname
+(i.e. "/etc/main.conf").
+
+
+
+=item B<-MergeDuplicateBlocks>
+
+If set to a true value, then duplicate blocks, that means blocks and named blocks,
+will be merged into a single one (see below for more details on this).
+The default behavior of Config::General is to create an array if some junk in a
+config appears more than once.
+
+
+=item B<-AutoTrue>
+
+If set to a true value, then options in your config file, whose values are set to
+true or false values, will be normalised to 1 or 0 respectively.
+
+The following values will be considered as B<true>:
+
+ yes, on, 1, true
+
+The following values will be considered as B<false>:
+
+ no, off, 0, false
+
+This effect is case-insensitive, i.e. both "Yes" or "oN" will result in 1.
+
+
+=item B<-FlagBits>
+
+This option takes one required parameter, which must be a hash reference.
+
+The supplied hash reference needs to define variables for which you
+want to preset values. Each variable you have defined in this hash-ref
+and which occurs in your config file, will cause this variable being
+set to the preset values to which the value in the config file refers to.
+
+Multiple flags can be used, separated by the pipe character |.
+
+Well, an example will clarify things:
+
+ my $conf = new Config::General(
+         -file => "rcfile",
+         -FlagBits => {
+              Mode => {
+                 CLEAR    => 1,
+                 STRONG   => 1,
+                 UNSECURE => "32bit" }
+         }
+ );
+
+In this example we are defining a variable named I<"Mode"> which
+may contain one or more of "CLEAR", "STRONG" and "UNSECURE" as value.
+
+The appropriate config entry may look like this:
+
+ # rcfile
+ Mode = CLEAR | UNSECURE
+
+The parser will create a hash which will be the value of the key "Mode". This
+hash will contain B<all> flags which you have pre-defined, but only those
+which were set in the config will contain the pre-defined value, the other
+ones will be undefined.
+
+The resulting config structure would look like this after parsing:
+
+ %config = (
+             Mode => {
+                       CLEAR    => 1,
+                       UNSECURE => "32bit",
+                       STRONG   => undef,
+                     }
+           );
+
+This method allows the user (or, the "maintainer" of the configfile for your
+application) to set multiple pre-defined values for one option.
+
+Please beware, that all occurences of thos variables will be handled this
+way, there is no way to distinguish between variables in different scopes.
+That means, that if "Mode" would also occur inside a named block, it would
+also parsed this way.
+
+Values which are not defined in the hash-ref supplied to the parameter B<-FlagBits>
+and used in the corresponding variable in the config will be ignored.
+
+Example:
+
+ # rcfile
+ Mode = BLAH | CLEAR
+
+would result in this hash structure:
+
+  %config = (
+             Mode => {
+                       CLEAR    => 1,
+                       UNSECURE => undef,
+                       STRONG   => undef,
+                     }
+           );
+
+"BLAH" will be ignored silently.
 
 =back
 
-Please note, that there is no method provided to turn this feature on.
+=item NoMultiOptions()
+
+This method only exists for compatibility reasons and is deprecated.
+Now you should set the parameter to the B<new()> method B<-AllowMultiOptions> to "no".
+
+see B<METHODS>.
 
 
 =item getall()
@@ -590,14 +892,25 @@ Please note, that there is no method provided to turn this feature on.
 Returns a hash structure which represents the whole config.
 
 
-=item save("filename", %confighash)
+=item save()
+
+B<Deprectated. Use save_file() instead!>
 
 
-Writes the config hash back to the harddisk. Please note, that any occurence
-of comments will be ignored and thus be lost after you called this method.
+=item save_file()
 
-You need also to know that named blocks will be converted to nested blocks (which is the same from
-the perl point of view). An example:
+Writes the config hash back to the harddisk. This method takes one or two
+parameters. The first parameter must be the filename where the config
+should be written to. The second parameter is optional, it must be a
+reference to a hash structure, if you set it. If you do not supply this second parameter
+then the internal config hash, which has already been parsed, will be
+used.
+
+Please note, that any occurence of comments will be ignored by getall()
+and thus be lost after you call this method.
+
+You need also to know that named blocks will be converted to nested blocks
+(which is the same from the perl point of view). An example:
 
  <user hans>
    id 13
@@ -610,7 +923,34 @@ will become the following after saving:
       id 13
    </hans>
  </user>
- 
+
+Example:
+
+ $conf_obj->save_file("newrcfile", \%config);
+
+or, if the config has already been parsed, or if it didn't change:
+
+ $conf_obj->save_file("newrcfile");
+
+
+=item save_string()
+
+This method is equivalent to the previous save_file(), but it does not
+store the generated config to a file. Instead it returns it as a string,
+which you can save yourself afterwards.
+
+It takes one optional parameter, which must be a reference to a hash structure.
+If you omit this parameter, the internal config hash, which has already been parsed,
+will be used.
+
+Example:
+
+ my $content = $conf_obj->save_string(\%config);
+
+or:
+
+ my $content = $conf_obj->save_string();
+
 
 =back
 
@@ -991,6 +1331,54 @@ You can use variables inside your configfiles if you like. To do
 that you have to use the module B<Config::General::Interpolated>,
 which is supplied with the Config::General distribution.
 
+
+=head1 EXPORTED FUNCTIONS
+
+Config::General exports some functions too, which makes it somewhat
+easier to use it, if you like this.
+
+=over
+
+=item B<ParseConfig()>
+
+This function takes exactly all those parameters, which are
+allowed to the B<new()> method of the standard interface.
+
+Example:
+
+ use Config::General;
+ my %config = ParseConfig(-file => "rcfile", -AutoTrue => 1);
+
+
+=item B<SaveConfig()>
+
+This function requires two arguments, a filename and a reference
+to a hash structure.
+
+Example:
+
+ use Config::General;
+ ..
+ SaveConfig("rcfile", \%some_hash);
+
+
+=item B<SaveConfigString()>
+
+This function requires a reference to a config hash as parameter.
+It generates a configuration based on this hash as the object-interface
+method B<save_string()> does.
+
+Example:
+
+ use Config::General;
+ my %config = ParseConfig(-file => "rcfile");
+ .. # change %config something
+ my $content = SaveConfigString(\%config);
+
+
+=back
+
+
 =head1 SEE ALSO
 
 I recommend you to read the following documentations, which are supplied with perl:
@@ -1001,10 +1389,11 @@ I recommend you to read the following documentations, which are supplied with pe
  perllol                        Perl data structures: arrays of arrays
 
  Config::General::Extended      Object oriented interface to parsed configs
+ Config::General::Interpolated  Allows to use variables inside config files
 
 =head1 COPYRIGHT
 
-Copyright (c) 2000-2001 Thomas Linden
+Copyright (c) 2000-2002 Thomas Linden
 
 This library is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
@@ -1022,7 +1411,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-1.28
+1.29
 
 =cut
 

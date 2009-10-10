@@ -1,3 +1,19 @@
+ 1.29:
+	 - added 2 procedural functions ParseConf and SaveConf
+	 - added new parameters -AutoTrue and -FlagBits
+	 - added save_file() which replaces save(), which was
+	   weird implemented. If the user only supplied a hash
+           as parameter to save(), then the first key was
+	   used as the filename and the rest was used
+	   as a config hash (which was then of an uneven size).
+	 - save_file() takes now instead of a hash a hash-ref
+	   and a filename. And the hashref is optional, since
+	   the object already contains a complete hash.
+	 - new method save_string() added, which returns the
+	   ready generated string instead of writing it to
+	   disk. The user can then save it himself.
+	 - POD updated.
+
  1.28:
 	 - added contributed sub module Config::General::Interpolated
 	   by "Wei-Hon Chen" <plasmaball@pchome.com.tw> with
