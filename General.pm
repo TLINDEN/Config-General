@@ -18,7 +18,7 @@ use strict;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = "1.29";
+$Config::General::VERSION = "1.30";
 
 use vars  qw(@ISA @EXPORT);
 @ISA    = qw(Exporter);
@@ -41,35 +41,42 @@ sub new {
     my %conf = @param;
     $configfile = delete $conf{-file} if(exists $conf{-file});
     $configfile = delete $conf{-hash} if(exists $conf{-hash});
+
     if (exists $conf{-AllowMultiOptions} ) {
       if ($conf{-AllowMultiOptions} =~ /^no$/) {
 	$self->{NoMultiOptions} = 1;
+	delete $conf{-AllowMultiOptions};
       }
     }
     if (exists $conf{-String} ) {
       if ($conf{-String}) {
 	$self->{StringContent} = $conf{-String};
+	delete $conf{-String};
       }
     }
     if (exists $conf{-LowerCaseNames}) {
       if ($conf{-LowerCaseNames}) {
 	$self->{LowerCaseNames} = 1;
+	delete $conf{-LowerCaseNames};
       }
     }
     if (exists $conf{-IncludeRelative}) {
       if ($conf{-IncludeRelative}) {
 	$self->{IncludeRelative} = 1;
+	delete $conf{-IncludeRelative};
       }
     }
     # contributed by Thomas Klausner <domm@zsi.at>
     if (exists $conf{-UseApacheInclude}) {
       if ($conf{-UseApacheInclude}) {
 	$self->{UseApacheInclude} = 1;
+	delete $conf{-UseApacheInclude};
       }
     }
     if (exists $conf{-MergeDuplicateBlocks}) {
       if ($conf{-MergeDuplicateBlocks}) {
 	$self->{MergeDuplicateBlocks} = 1;
+	delete $conf{-MergeDuplicateBlocks};
       }
     }
     if (exists $conf{-AutoTrue}) {
@@ -79,14 +86,21 @@ sub new {
 				  true  => '^(on|yes|true|1)$',
 				  false => '^(off|no|false|0)$',
 				 };
+	delete $conf{-AutoTrue};
       }
     }
     if (exists $conf{-FlagBits}) {
       if ($conf{-FlagBits} && ref($conf{-FlagBits}) eq "HASH") {
 	$self->{FlagBits} = 1;
 	$self->{FlagBitsFlags} = $conf{-FlagBits};
+	delete $conf{-FlagBits};
       }
     }
+
+    if (%conf) {
+      croak "Unknown parameter(s): " . (join ", ", (keys %conf) ) . "\n";
+    }
+
   }
   elsif ($#param == 0) {
     # use of the old style
@@ -544,7 +558,7 @@ sub save_string {
     }
   }
   else {
-    return $this->_store(0,%config);
+    return $this->_store(0, %{$config});
   }
 }
 
@@ -1411,7 +1425,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-1.29
+1.30
 
 =cut
 

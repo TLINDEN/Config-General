@@ -1,3 +1,7 @@
+ 1.30:   - fixed typo, which made 1.29 unusable (undefined var %config)
+         - added code to check if unknown parameters to new()
+	   has been supplied.
+
  1.29:
 	 - added 2 procedural functions ParseConf and SaveConf
 	 - added new parameters -AutoTrue and -FlagBits
