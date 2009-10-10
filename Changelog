@@ -1,3 +1,27 @@
+ 2.00    - fixed a bug in the ::Extended::keys() method, which 
+	   caused a beloved "use of uninitialized ..." message.
+	   Reported by Danial Pearce <danial@infoxchange.net.au>.
+
+         - Removed all deprecated methods (in fact, they are still
+	   there for shouting out a warn that its deprecated. But
+	   the pod sections are removed. These are NoMultiOptions()
+	   and save().
+
+	 - added two new parameters to new(): -InterPolateVars and
+	   -ExtendedAccess, which allows one to use the functionalites
+	   of the supplied submodules without the need to decide
+	   for one of them. This makes it possible to use variable
+	   interpolation and oop access in the same time. Suggested
+	   by Jared Rhine <jared@wordzoo.com>.
+
+	 - added new parameter -BaseHash which makes it possible
+	   to supply your own hash which stores the parsed contents
+	   of the config. This can be a tied hash o the like.
+	   Suggested by Jared Rhine <jared@wordzoo.com> too.
+
+	 - switched to release 2.00 because the above is a major
+	   change.
+
  1.36    - simplified new() parameter parsing, should be now a little
 	   bit better to understand.
 

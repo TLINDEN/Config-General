@@ -1,13 +1,16 @@
 package Config::General::Interpolated;
-$Config::General::Interpolated::VERSION = "1.0";
+$Config::General::Interpolated::VERSION = "1.1";
 
 use strict;
 use Carp;
 use Config::General;
+use Exporter ();
+
 
 # Import stuff from Config::General
-use vars qw(@ISA);
-@ISA = qw(Config::General);
+use vars qw(@ISA @EXPORT);
+@ISA = qw(Config::General Exporter);
+@EXPORT=qw(_set_regex _vars);
 
 sub new {
   #
@@ -17,10 +20,24 @@ sub new {
   my $class = shift;
   my $self  = $class->SUPER::new(@_);
 
+  $self->{regex}  = $self->_set_regex();
+
+  $self->{config} = $self->_vars($self->{config}, {});
+
+  return $self;
+}
+
+
+
+sub _set_regex {
+  #
+  # set the regex for finding vars
+  #
+
   # the following regex is provided by Autrijus Tang
   # <autrijus@autrijus.org>, and I made some modifications.
   # thanx, autrijus. :)
-  $self->{regex} = qr{
+  my $regex = qr{
 	               (^|[^\\])	# can be the beginning of the line
 	                                # but can't begin with a '\'
 	               \$		# dollar sign
@@ -31,17 +48,12 @@ sub new {
 	               \}		#     ... match closing curly
 	              )
 	             }x;
-
-  $self->{config} = $self->vars($self->{config}, {});
-
-  return $self;
+  return $regex;
 }
 
 
 
-
-
-sub vars {
+sub _vars {
     my ($this, $config, $stack) = @_;
     my %varstack;
 
@@ -90,7 +102,7 @@ sub vars {
     # traverse the hierarchy part
     while (my ($key, $value) = each %{$config}) {
       # this is not a scalar recursive call to myself
-      $this->vars($value, {%{$stack}, %varstack})
+      _vars($value, {%{$stack}, %varstack})
 	if ref($value) eq 'HASH';
     }
 
@@ -109,21 +121,20 @@ Config::General::Interpolated - Parse variables within Config files
 
 =head1 SYNOPSIS
 
- use Config::General::Interpolated;
- $conf = new Config::General::Interpolated("rcfile");
- # or
- $conf = new Config::General::Interpolated(\%somehash);
+ use Config::General;
+ $conf = new Config::General(
+    -file            => 'configfile',
+    -InterPolateVars => 1
+ );
 
 =head1 DESCRIPTION
 
-This module is a subclass of B<Config::General>. You can use it if
-your config file contains perl-style variables (i.e. C<$variable>
-or C<${variable}>). The following methods are directly inherited
-from Config::General: B<new() getall()>.
+This is an internal module which makes it possible to interpolate
+perl style variables in your config file (i.e. C<$variable>
+or C<${variable}>).
 
+Normally you don't call it directly.
 
-Please refer to the L<Config::General> for the module's usage and the
-format of config files.
 
 =head1 VARIABLES
 
@@ -193,15 +204,16 @@ L<Config::General>
 =head1 COPYRIGHT
 
 Copyright 2001 by Wei-Hon Chen E<lt>plasmaball@pchome.com.twE<gt>.
+Copyright 2002 by Thomas Linden <tom@daemon.de>.
 
-This program is free software; you can redistribute it and/or 
+This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
 
 See L<http://www.perl.com/perl/misc/Artistic.html>
 
 =head1 VERSION
 
-This document describes version 1.0 of B<Config::General::Interpolated>.
+This document describes version 1.1 of B<Config::General::Interpolated>.
 
 =cut
 
