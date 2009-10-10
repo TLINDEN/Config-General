@@ -10,18 +10,20 @@
 # All Rights Reserved. Std. disclaimer applies.
 # Artificial License, same as perl itself. Have fun.
 #
-# Changes from 1.21:   - added a new option to new(): -LowerCaseNames, which
-#                        lowercases all option-names (feature request)
-# Changes from 1.20:   - lines with just one "#" became an option array named
-#                        "#" with empty entries, very weird, fixed
-# Changes from 1.19:   - added an if(exists... to new() for checking of the
-#                        existence of -AllowMultiOptions.
-#                      - use now "local $_" because it caused weird results
-#                        if a user used $_ with the module.
-# Changes from 1.18:   - you can escape "#" characters using a backslash: "\#"
-#                        which will now no more treated as a comment.
-#                      - comments inside here-documents will now remain in the
-#                        here-doc value.
+# 1.23:   - fixed bug, which removed trailing or leading " even
+#           no matching " was there.
+# 1.22:   - added a new option to new(): -LowerCaseNames, which
+#           lowercases all option-names (feature request)
+# 1.21:   - lines with just one "#" became an option array named
+#           "#" with empty entries, very weird, fixed
+# 1.20:   - added an if(exists... to new() for checking of the
+#           existence of -AllowMultiOptions.
+#         - use now "local $_" because it caused weird results
+#           if a user used $_ with the module.
+# 1.19:   - you can escape "#" characters using a backslash: "\#"
+#           which will now no more treated as a comment.
+#         - comments inside here-documents will now remain in the
+#           here-doc value.
 
 # namespace
 package Config::General;
@@ -30,7 +32,7 @@ use FileHandle;
 use strict;
 use Carp;
 
-$Config::General::VERSION = "1.22";
+$Config::General::VERSION = "1.23";
 
 sub new {
   #
@@ -209,8 +211,10 @@ sub _parse {
     my ($option,$value) = split /\s*=\s*|\s+/, $_, 2;      # option/value assignment, = is optional
     my $indichar = chr(182);                               # ¶, inserted by _open, our here-doc indicator
     $value =~ s/^$indichar// if($value);                   # a here-doc begin, remove indicator
-    $value =~ s/^"// if($value);                           # remove leading and trailing "
-    $value =~ s/"$// if($value);
+    if ($value && $value =~ /^"/ && $value =~ /"$/) {
+      $value =~ s/^"//;                                    # remove leading and trailing "
+      $value =~ s/"$//;
+    }
     if (!$block) {                                         # not inside a block @ the moment
       if (/^<([^\/]+?.*?)>$/) {                            # look if it is a block
 	$this->{level} += 1;
