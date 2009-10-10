@@ -1,3 +1,7 @@
+ 2.23
+         - still versioning problem, stupid white man ;-)
+	   Extended.pm is now 2.00 which *is* higher than 1.10.
+
  2.22
          - incremented all version numbers because of cpan problem.
 	   no further changes. See Bug #3347 (rt.cpan.org).
