@@ -4,17 +4,18 @@
 # the Conf.pm source directory.
 # Under normal circumstances every test should run.
 
-BEGIN { $| = 1; print "1..7\n";}
+BEGIN { $| = 1; print "1..8\n";}
 use lib "blib/lib";
 use Config::General;
+use Data::Dumper;
 print "ok\n";
 print STDERR "\n1 .. ok # loading Config::General\n";
 
-foreach (2..6) {
+foreach (2..7) {
   &p("t/cfg." . $_, $_);
 }
 
-my $conf = new Config::General("t/cfg.7");
+my $conf = new Config::General("t/cfg.8");
 my %hash = $conf->getall;
 $conf->save("t/cfg.out", %hash);
 
@@ -25,14 +26,14 @@ my $a = \%hash;
 my $b = \%copyhash;
 
 # now see if the saved hash is still the same as the
-# one we got from cfg.7
+# one we got from cfg.8
 if (&comp($a,$b)) {
   print "ok\n";
-  print STDERR "7 .. ok # Writing Config Hash to disk and compare with original\n";
+  print STDERR "8 .. ok # Writing Config Hash to disk and compare with original\n";
 }
 else {
-  print "7 not ok\n";
-  print STDERR "7 .. not ok\n";
+  print "8 not ok\n";
+  print STDERR "8 .. not ok\n";
 }
 
 
