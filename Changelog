@@ -1,3 +1,6 @@
+ 1.31:   - i'm such a moron ... I forgot to do a make clean
+           in 1.30, pf. So this is 1.31, which is clean.
+
  1.30:   - fixed typo, which made 1.29 unusable (undefined var %config)
          - added code to check if unknown parameters to new()
 	   has been supplied.
