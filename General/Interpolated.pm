@@ -1,5 +1,5 @@
 package Config::General::Interpolated;
-$Config::General::Interpolated::VERSION = "2.01";
+$Config::General::Interpolated::VERSION = "2.02";
 
 use strict;
 use Carp;
@@ -33,16 +33,17 @@ sub _set_regex {
   # <autrijus@autrijus.org>, and I made some modifications.
   # thanx, autrijus. :)
   my $regex = qr{
-	               (^|[^\\])	# $1: can be the beginning of the line
-	                                #     but can't begin with a '\'
-	               \$		# dollar sign
-	               (\{)?		# $2: optional opening curly
-	               ([a-zA-Z_]\w*)	# $3: capturing variable name
-	               (
-	               ?(2)		# $4: if there's the opening curly...
-	               \}		#     ... match closing curly
-	              )
-	             }x;
+		 (^|\G|[^\\])   # $1: can be the beginning of the line
+		                #     or the beginning of next match
+		                #     but can't begin with a '\'
+		 \$		# dollar sign
+		 (\{)?		# $2: optional opening curly
+		 ([a-zA-Z_]\w*)	# $3: capturing variable name
+		 (
+		 ?(2)		# $4: if there's the opening curly...
+		 \}		#     ... match closing curly
+		)
+	       }x;
   return $regex;
 }
 
