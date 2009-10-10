@@ -1,3 +1,8 @@
+ 2.36
+	- oh my goodness! For some unknown reason I deleted the
+	  Makefile.PL before packaging. Dammit. So, here it is
+	  again.
+
  2.35
 	- 'make test' failed under perl 5.5 because some prequisite
 	  modules were not found. So now I added all requirements
