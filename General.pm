@@ -26,7 +26,7 @@ use Carp::Heavy;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = "2.28";
+$Config::General::VERSION = "2.29";
 
 use vars  qw(@ISA @EXPORT);
 @ISA    = qw(Exporter);
@@ -86,6 +86,7 @@ sub new {
 
 	      parsed                => 0,       # internal state stuff for variable interpolation
 	      upperkey              => "",
+	      upperkeys             => [],
 	      lastkey               => "",
 	      prevkey               => " ",
 	      files                 => {},      # which files we have read, if any
@@ -771,7 +772,7 @@ sub _parse {
 
 sub _savelast {
   my($this, $key) = @_;
-  $this->{upperkey} = $this->{lastkey};
+  push(@{$this->{upperkeys}}, $this->{lastkey});
   $this->{lastkey}  = $this->{prevkey};
   $this->{prevkey}  = $key;
 }
@@ -779,7 +780,7 @@ sub _savelast {
 sub _backlast {
   my($this, $key) = @_;
   $this->{prevkey} = $this->{lastkey};
-  $this->{lastkey} = $this->{upperkey};
+  $this->{lastkey} = pop(@{$this->{upperkeys}});
 }
 
 sub _parse_value {
@@ -2069,7 +2070,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-2.28
+2.29
 
 =cut
 

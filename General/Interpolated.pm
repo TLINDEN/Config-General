@@ -8,7 +8,7 @@
 #
 
 package Config::General::Interpolated;
-$Config::General::Interpolated::VERSION = "2.04";
+$Config::General::Interpolated::VERSION = "2.05";
 
 use strict;
 use Carp;
@@ -85,12 +85,13 @@ sub _interpolate  {
   $value =~ s{$this->{regex}}{
     my $con = $1;
     my $var = $3;
+    $var = lc($var) if $this->{LowerCaseNames};
     if (exists $this->{stack}->{ $this->{level} }->{ $prevkey }->{$var}) {
       $con . $this->{stack}->{ $this->{level} }->{ $prevkey }->{$var};
     }
     else {
       if ($this->{StrictVars}) {
-	croak "Use of uninitialized variable \$" . $var . "\n";
+	croak "Use of uninitialized variable (\$$var) while loading config entry: $key = $value\n";
       }
       else {
 	# be cool
@@ -114,15 +115,17 @@ sub _interpolate_hash {
   #
   my ($this, $config) = @_;
 
-  $this->{level}    = 1;
-  $this->{upperkey} = "";
-  $this->{lastkey}  = "";
-  $this->{prevkey}  = " ";
+  $this->{level}     = 1;
+  $this->{upperkey}  = "";
+  $this->{upperkeys} = [];
+  $this->{lastkey}   = "";
+  $this->{prevkey}   = " ";
 
   $config = $this->_var_hash_stacker($config);
 
   $this->{level}    = 1;
   $this->{upperkey} = "";
+  $this->{upperkeys} = [];
   $this->{lastkey}  = "";
   $this->{prevkey}  = " ";
 
@@ -296,7 +299,7 @@ See L<http://www.perl.com/perl/misc/Artistic.html>
 
 =head1 VERSION
 
-2.04
+2.05
 
 =cut
 
