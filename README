@@ -1,0 +1,82 @@
+NAME
+       Config::General - Generic Config Module
+
+
+SYNOPSIS
+        use Config::General;
+        $conf = new Config::General("rcfile");
+        my %config = $conf->getall;
+
+
+DESCRIPTION
+       This small module opens a config file and parses it's
+       contents for you. The new method requires one parameter
+       which needs to be a filename. The method getall returns a
+       hash which contains all options and it's associated values
+       of your config file.
+
+       The format of config files supported by Config::General is
+       inspired by the well known apache config format, in fact,
+       this module is 100% compatible to apache configs, but you
+       can also just use simple name/value pairs in your config
+       files.
+
+       In addition to the capabilities of an apache config file
+       it supports some enhancements such as here-documents, C-
+       style comments or multiline options.
+
+       There are currently no methods available for accessing
+       sub-parts of the generated hash structure, so it is on you
+       to access the data within the hash. But there exists a
+       module on CPAN which you can use for this purpose:
+       Data::DRef. Check it out!
+
+
+INSTALLATION
+
+	to install, type:
+	  perl Makefile.PL
+	  make
+	  make test
+	  make install
+
+	to read the complete documentation, type:
+	perldoc Config::General
+
+	see some example config files which can
+	be parsed with Config::Genreal in the subdirectory
+	t/cfg.*
+
+
+COPYRIGHT
+       Copyright (c) 2000 Thomas Linden
+
+       This library is free software; you can redistribute it
+       and/or modify it under the same terms as Perl itself.
+
+
+BUGS
+       none known yet.
+
+
+AUTHOR
+       Thomas Linden <tom@consol.de>
+
+
+COPYRIGHT
+       Copyright (c) 2000 Thomas Linden
+
+       This library is free software; you can redistribute it
+       and/or modify it under the same terms as Perl itself.
+
+
+BUGS
+       none known yet.
+
+
+AUTHOR
+       Thomas Linden <tom@consol.de>
+
+
+VERSION
+	1.17
