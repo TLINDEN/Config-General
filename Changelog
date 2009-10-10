@@ -1,3 +1,37 @@
+ 1.36    - simplified new() parameter parsing, should be now a little
+	   bit better to understand.
+
+	 - added new parameter -DefaultConfig, which can hold a hashref
+	   or a string, which will be used to pre-define values
+	   of the resulting hash after parsing a config.
+	   Thanks to Mark Hampton <mark.hampton@qualis.com> for the
+	   suggestion.
+
+	 - added new parameter -MergeDuplicateOptions, which allows
+	   one to overwrite duplicate options, which is required,
+	   if you turn on -DefaultConfig, because otherwise a
+ 	   array would be created, which is probably not what you
+	   wanted.
+
+	 - added patch by Danial Pearce <danial@infoxchange.net.au>
+	   to Config::General::Extended::keys(), which allows to
+	   retrieve the keys of the object itself (which was not
+	   directly possible before)
+
+	 - added patch by Danial Pearce <danial@infoxchange.net.au>
+	   to Config::General::Extended::value(), which allows to
+	   set a value to a (perlish-) nontrue value. This was a
+	   bug.
+
+	 - added patch by Danial Pearce <danial@infoxchange.net.au>
+	   to Config::General::_parse_value, which fixes a bug in
+	   this method, which in prior versions caused values of
+	   "0" (zero digit) to be wiped out of the config.
+
+	 - added tests in t/run.t for the new default config feature.
+	 
+	
+
  1.35    - the here-doc identifier in saved configs will now created
            in a way which avoids the existence of this identifier
 	   inside the here-doc, which if it happens results in

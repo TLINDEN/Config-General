@@ -22,7 +22,7 @@ use vars qw(@ISA);
 use strict;
 
 
-$Config::General::Extended::VERSION = "1.4";
+$Config::General::Extended::VERSION = "1.5";
 
 
 sub obj {
@@ -52,7 +52,7 @@ sub value {
   # this can be a hashref or a scalar
   #
   my($this, $key, $value) = @_;
-  if ($value) {
+  if (defined $value) {
     $this->{config}->{$key} = $value;
   }
   else {
@@ -156,6 +156,9 @@ sub keys {
   my($this, $key) = @_;
   if (exists $this->{config}->{$key} && ref($this->{config}->{$key}) eq "HASH") {
     return map { $_ } keys %{$this->{config}->{$key}};
+  }
+  elsif (!$key) {
+    return map { $_ } keys %{$this->{config}};
   }
   else {
     return ();
@@ -451,6 +454,8 @@ config above you yould do that:
  print Dumper($conf->keys("individual");
  $VAR1 = [ "martin", "joseph" ];
 
+If no key name was supplied, then the keys of the object itself will be returned.
+
 You can use this method in B<foreach> loops as seen in an example above(obj() ).
 
 
@@ -517,7 +522,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-1.4
+1.5
 
 =cut
 

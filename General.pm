@@ -17,7 +17,7 @@ use strict;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = "1.35";
+$Config::General::VERSION = "1.36";
 
 use vars  qw(@ISA @EXPORT);
 @ISA    = qw(Exporter);
@@ -30,10 +30,35 @@ sub new {
   my($this, @param ) = @_;
   my($configfile);
   my $class = ref($this) || $this;
-  my $self = {};
+
+
+  # define default options
+  my $self = {
+	      AllowMultiOptions     => 1,
+
+	      MergeDuplicateOptions => 0,
+	      MergeDuplicateBlocks  => 0,
+
+	      LowerCaseNames        => 0,
+
+	      UseApacheInclude      => 0,
+	      IncludeRelative       => 0,
+
+	      AutoTrue              => 0,
+
+	      AutoTrueFlags         => {
+					true  => '^(on|yes|true|1)$',
+					false => '^(off|no|false|0)$',
+				       },
+
+	      DefaultConfig         => {},
+
+	      level                 => 1,
+	     };
+
+  # create the class instance
   bless($self,$class);
 
-  $self->{level} = 1;
 
   if ($#param >= 1) {
     # use of the new hash interface!
@@ -41,84 +66,74 @@ sub new {
     $configfile = delete $conf{-file} if(exists $conf{-file});
     $configfile = delete $conf{-hash} if(exists $conf{-hash});
 
-    if (exists $conf{-AllowMultiOptions} ) {
-      if ($conf{-AllowMultiOptions} =~ /^no$/) {
-	$self->{NoMultiOptions} = 1;
-	delete $conf{-AllowMultiOptions};
-      }
-      else {
-        delete $conf{-AllowMultiOptions};
-      }
-    }
+
+
+    # handle options which contains values we are needing (strings, hashrefs or the like)
     if (exists $conf{-String} ) {
       if ($conf{-String}) {
 	$self->{StringContent} = $conf{-String};
-	delete $conf{-String};
       }
-    }
-    if (exists $conf{-LowerCaseNames}) {
-      if ($conf{-LowerCaseNames}) {
-	$self->{LowerCaseNames} = 1;
-	delete $conf{-LowerCaseNames};
-      }
-    }
-    if (exists $conf{-IncludeRelative}) {
-      if ($conf{-IncludeRelative}) {
-	$self->{IncludeRelative} = 1;
-	delete $conf{-IncludeRelative};
-      }
-    }
-    # contributed by Thomas Klausner <domm@zsi.at>
-    if (exists $conf{-UseApacheInclude}) {
-      if ($conf{-UseApacheInclude}) {
-	$self->{UseApacheInclude} = 1;
-	delete $conf{-UseApacheInclude};
-      }
-    }
-    if (exists $conf{-MergeDuplicateBlocks}) {
-      if ($conf{-MergeDuplicateBlocks}) {
-	$self->{MergeDuplicateBlocks} = 1;
-	delete $conf{-MergeDuplicateBlocks};
-      }
-    }
-    if (exists $conf{-AutoTrue}) {
-      if ($conf{-AutoTrue}) {
-	$self->{AutoTrue} = 1;
-	$self->{AutoTrueFlags} = {
-				  true  => '^(on|yes|true|1)$',
-				  false => '^(off|no|false|0)$',
-				 };
-	delete $conf{-AutoTrue};
-      }
+      delete $conf{-String};
     }
     if (exists $conf{-FlagBits}) {
       if ($conf{-FlagBits} && ref($conf{-FlagBits}) eq "HASH") {
 	$self->{FlagBits} = 1;
 	$self->{FlagBitsFlags} = $conf{-FlagBits};
-	delete $conf{-FlagBits};
+      }
+      delete $conf{-FlagBits};
+    }
+
+    if (exists $conf{-DefaultConfig}) {
+      if ($conf{-DefaultConfig} && ref($conf{-DefaultConfig}) eq "HASH") {
+	$self->{DefaultConfig} = $conf{-DefaultConfig};
+      }
+      elsif ($conf{-DefaultConfig} && ref($conf{-DefaultConfig}) eq "") {
+	$self->_read($conf{-DefaultConfig}, "SCALAR");
+	$self->{DefaultConfig} = $self->_parse({}, $self->{content});
+	$self->{content} = ();
+      }
+      delete $conf{-DefaultConfig};
+    }
+
+
+    # handle options which may either be true or false
+    # allowing "human" logic about what is true and what is not
+    foreach my $entry (keys %conf) {
+      my $key = $entry;
+      $key =~ s/^\-//;
+      if (! exists $self->{$key}) {
+	croak "Unknown parameter: $entry => \"$conf{$entry}\" (key: <$key>)\n";
+      }
+      if ($conf{$entry} =~ /$self->{AutoTrueFlags}->{true}/io) {
+	$self->{$key} = 1;
+      }
+      elsif ($conf{$entry} =~ /$self->{AutoTrueFlags}->{false}/io) {
+	$self->{$key} = 0;
       }
     }
 
-    if (%conf) {
-      croak "Unknown parameter(s): " . (join ", ", (keys %conf) ) . "\n";
+    if ($self->{MergeDuplicateOptions}) {
+      # override
+      $self->{AllowMultiOptions} = 0;
     }
-
   }
   elsif ($#param == 0) {
     # use of the old style
     $configfile = $param[0];
   }
   else {
-    # this happens if $#param == -1, thus no param was given to new!
+    # this happens if $#param == -1,1 thus no param was given to new!
     $self->{config} = {};
     return $self;
   }
+
+  ### use Data::Dumper; print Dumper($self); exit;
 
   # process as usual
   if (exists $self->{StringContent}) {
     # consider the supplied string as config file
     $self->_read($self->{StringContent}, "SCALAR");
-    $self->{config} = $self->_parse({}, $self->{content});
+    $self->{config} = $self->_parse($self->{DefaultConfig}, $self->{content});
   }
   elsif (ref($configfile) eq "HASH") {
     # initialize with given hash
@@ -128,16 +143,16 @@ sub new {
   elsif (ref($configfile) eq "GLOB") {
     # use the file the glob points to
     $self->_read($configfile);
-    $self->{config} = $self->_parse({}, $self->{content});
+    $self->{config} = $self->_parse($self->{DefaultConfig}, $self->{content});
   }
   else {
     # open the file and read the contents in
     $self->{configfile} = $configfile;
-    # look if is is an absolute path and save the basename if it is
+    # look if is is an absolute path and save the basename if it is absolute
     ($self->{configpath}) = $configfile =~ /^(\/.*)\//;
     $self->_open($self->{configfile});
     # now, we parse immdediately, getall simply returns the whole hash
-    $self->{config} = $self->_parse({}, $self->{content});
+    $self->{config} = $self->_parse($self->{DefaultConfig}, $self->{content});
   }
 
   return $self;
@@ -184,7 +199,7 @@ sub _read {
       @stuff = @{$fh};
     }
     else {
-      @stuff = join "\n", $fh;
+      @stuff = split "\n", $fh;
     }
   }
   else {
@@ -323,24 +338,28 @@ sub _parse {
       }
       else {                                               # insert key/value pair into actual node
 	$option = lc($option) if $this->{LowerCaseNames};
-	if ($this->{NoMultiOptions}) {                     # configurable via special method ::NoMultiOptions()
-	  if (exists $config->{$option}) {
-	    croak "Option \"$option\" occurs more than once (level: $this->{level}, chunk $chunk)!\n";
-	  }
-	  $config->{$option} = $this->_parse_value($option, $value);
-	}
-	else {
-	  if (exists $config->{$option}) {	           # value exists more than once, make it an array
-	    if (ref($config->{$option}) ne "ARRAY") {      # convert scalar to array
-	      my $savevalue = $config->{$option};
-	      delete $config->{$option};
-	      push @{$config->{$option}}, $savevalue;
-	    }
-	    push @{$config->{$option}}, $this->_parse_value($option, $value); # it's already an array, just push
+	if (exists $config->{$option}) {
+	  if ($this->{MergeDuplicateOptions}) {
+	    $config->{$option} = $this->_parse_value($option, $value);
 	  }
 	  else {
-	    $config->{$option} = $this->_parse_value($option, $value); # standard config option, insert key/value pair into node
+	    if (! $this->{AllowMultiOptions} ) {
+	      # no, duplicates not allowed
+	      croak "Option \"$option\" occurs more than once (level: $this->{level}, chunk $chunk)!\n";
+	    }
+	    else {
+	      # yes, duplicates allowed
+	      if (ref($config->{$option}) ne "ARRAY") {      # convert scalar to array
+		my $savevalue = $config->{$option};
+		delete $config->{$option};
+		push @{$config->{$option}}, $savevalue;
+	      }
+	      push @{$config->{$option}}, $this->_parse_value($option, $value); # it's already an array, just push
+	    }
 	  }
+	}
+	else {
+	  $config->{$option} = $this->_parse_value($option, $value); # standard config option, insert key/value pair into node
 	}
       }
     }
@@ -356,7 +375,7 @@ sub _parse {
       else {                                               # calling myself recursively, end of $block reached, $block_level is 0
 	if ($blockname) {                                  # a named block, make it a hashref inside a hash within the current node
 	  if (exists $config->{$block}->{$blockname}) {    # the named block already exists, make it an array
-	    if ($this->{NoMultiOptions}) {
+	    if (! $this->{AllowMultiOptions}) {
 	      croak "Named block \"<$block $blockname>\" occurs more than once (level: $this->{level}, chunk $chunk)!\n";
 	    }
 	    else {
@@ -386,7 +405,7 @@ sub _parse {
 	}
 	else {                                             # standard block
 	  if (exists $config->{$block}) {                  # the block already exists, make it an array
-	    if ($this->{NoMultiOptions}) {
+	    if (! $this->{AllowMultiOptions}) {
 	      croak "Block \"<$block>\" occurs more than once (level: $this->{level}, chunk $chunk)!\n";
 	    }
 	    else {
@@ -446,7 +465,7 @@ sub _parse_value {
   my($this, $option, $value) =@_;
 
   # avoid "Use of uninitialized value"
-  $value ||= "";
+  $value = '' unless defined $value;
 
   # make true/false values to 1 or 0 (-AutoTrue)
   if ($this->{AutoTrue}) {
@@ -483,12 +502,12 @@ sub _parse_value {
 
 sub NoMultiOptions {
   #
-  # turn NoMultiOptions off, still exists for backward compatibility.
+  # turn AllowMultiOptions off, still exists for backward compatibility.
   # Since we do parsing from within new(), we must
   # call it again if one turns NoMultiOptions on!
   #
   my($this) = @_;
-  $this->{NoMultiOptions} = 1;
+  $this->{AllowMultiOptions} = 0;
   $this->{config} = $this->_parse({}, $this->{content});
 }
 
@@ -853,6 +872,15 @@ The default behavior of Config::General is to create an array if some junk in a
 config appears more than once.
 
 
+=item B<-MergeDuplicateOptions>
+
+If set to a true value, then duplicate options will be merged. That means, if the
+same option occurs more than once, the last one will be used in the resulting
+config hash.
+
+Setting this option implies B<-AllowMultiOptions == false>.
+
+
 =item B<-AutoTrue>
 
 If set to a true value, then options in your config file, whose values are set to
@@ -942,6 +970,15 @@ would result in this hash structure:
            );
 
 "BLAH" will be ignored silently.
+
+
+=item B<-DefaultConfig>
+
+This can be a hash reference or a simple scalar (string) of a config. This
+causes the module to preset the resulting config hash with the given values,
+which allows you to set default values for particular config options directly.
+
+
 
 =back
 
@@ -1477,7 +1514,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-1.35
+1.36
 
 =cut
 

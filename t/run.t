@@ -6,7 +6,7 @@
 #
 # Under normal circumstances every test should succeed.
 
-BEGIN { $| = 1; print "1..16\n";}
+BEGIN { $| = 1; print "1..18\n";}
 use lib "blib/lib";
 use Config::General;
 use Config::General::Extended;
@@ -128,6 +128,50 @@ else {
 }
 
 
+
+# testing value pre-setting using a hash
+my $conf17 = new Config::General(
+				 -file => "t/cfg.17",
+				 -DefaultConfig => { home => "/exports/home", logs => "/var/backlog" },
+				 -MergeDuplicateOptions => 1,
+				 -MergeDuplicateBlocks => 1
+				 );
+my %h17 = $conf17->getall();
+if ($h17{home} eq "/home/users") {
+  print "ok\n";
+  print STDERR " .. ok # Testing value pre-setting using a hash\n";
+}
+else {
+  print "17 not ok\n";
+  print STDERR "17 not ok\n";
+}
+
+
+# testing value pre-setting using a string
+my $conf18 = new Config::General(
+				 -file => "t/cfg.17", # reuse the file
+				 -DefaultConfig => "home = /exports/home\nlogs = /var/backlog",
+				 -MergeDuplicateOptions => 1,
+				 -MergeDuplicateBlocks => 1
+				 );
+my %h18 = $conf18->getall();
+if ($h18{home} eq "/home/users") {
+  print "ok\n";
+  print STDERR " .. ok # Testing value pre-setting using a hash\n";
+}
+else {
+  print "18 not ok\n";
+  print STDERR "18 not ok\n";
+}
+
+
+
+
+
+
+
+
+# all subs here
 
 sub p {
   my($cfg, $t) = @_;
