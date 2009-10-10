@@ -13,12 +13,12 @@
 package Config::General;
 
 use FileHandle;
-use File::Spec::Functions;
+use File::Spec::Functions qw(splitpath file_name_is_absolute);
 use strict;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = "2.17";
+$Config::General::VERSION = "2.18";
 
 use vars  qw(@ISA @EXPORT);
 @ISA    = qw(Exporter);
@@ -230,7 +230,7 @@ sub new {
 	$self->{configfile} = $self->{ConfigFile};
 	if ( file_name_is_absolute($self->{ConfigFile}) ) {
 	  # look if is is an absolute path and save the basename if it is absolute
-	  my ($dummi, $path, $dummi) = splitpath($self->{ConfigFile});
+	  my (undef, $path, undef) = splitpath($self->{ConfigFile});
 	  $path =~ s#/$##; # remove eventually existing trailing slash
 	  $self->{configpath} = $path;
 	}
@@ -1805,7 +1805,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-2.17
+2.18
 
 =cut
 

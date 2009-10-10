@@ -1,3 +1,9 @@
+ 2.18
+	 - fixed Bug #2325 (rt.cpan.org). The subs exported by File::Spec
+	   will now imported explicitly.
+	 - fixed warning about double my'ed variable $dummi, changed it
+	   to undef because it was unused anyway.
+
  2.17
 	 - added File::Spec support which makes the modules more portable
 	   (i.e. on win32 systems),
