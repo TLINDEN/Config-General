@@ -1,7 +1,6 @@
 NAME
        Config::General - Generic Config Module
 
-
 SYNOPSIS
         use Config::General;
         $conf = new Config::General("rcfile");
@@ -37,6 +36,7 @@ INSTALLATION
 
 	to read the complete documentation, type:
 	perldoc Config::General
+	perldoc Config::General::Extended
 
 	see some example config files which can
 	be parsed with Config::Genreal in the subdirectory
@@ -59,4 +59,4 @@ AUTHOR
 
 
 VERSION
-	1.23
+	1.24

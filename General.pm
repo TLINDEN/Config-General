@@ -10,21 +10,6 @@
 # All Rights Reserved. Std. disclaimer applies.
 # Artificial License, same as perl itself. Have fun.
 #
-# 1.23:   - fixed bug, which removed trailing or leading " even
-#           no matching " was there.
-# 1.22:   - added a new option to new(): -LowerCaseNames, which
-#           lowercases all option-names (feature request)
-# 1.21:   - lines with just one "#" became an option array named
-#           "#" with empty entries, very weird, fixed
-# 1.20:   - added an if(exists... to new() for checking of the
-#           existence of -AllowMultiOptions.
-#         - use now "local $_" because it caused weird results
-#           if a user used $_ with the module.
-# 1.19:   - you can escape "#" characters using a backslash: "\#"
-#           which will now no more treated as a comment.
-#         - comments inside here-documents will now remain in the
-#           here-doc value.
-
 # namespace
 package Config::General;
 
@@ -32,7 +17,7 @@ use FileHandle;
 use strict;
 use Carp;
 
-$Config::General::VERSION = "1.23";
+$Config::General::VERSION = "1.24";
 
 sub new {
   #
@@ -59,6 +44,12 @@ sub new {
     if (exists $conf{-LowerCaseNames}) {
       if ($conf{-LowerCaseNames}) {
 	$self->{LowerCaseNames} = 1;
+      }
+    }
+    # contributed by Thomas Klausner <domm@zsi.at>
+    if (exists $conf{-UseApacheInclude}) {
+      if ($conf{-UseApacheInclude}) {
+	$self->{UseApacheInclude} = 1;
       }
     }
   }
@@ -178,6 +169,12 @@ sub _open {
 	  if (/^<<include (.+?)>>$/) {            # include external config file
 	    $this->_open($1) if(!$c_comment);     # call _open with the argument to include assuming it is a filename
 	  }
+	  elsif ((/^[Ii]nclude (.+?)$/) && ($this->{UseApacheInclude})) {
+	    # contributed by Thomas Klausner <domm@zsi.at>
+	    # include external config file, Apache Style
+	    # call _open with the argument to include assuming it is a filename
+	    $this->_open($1) if(!$c_comment);
+	  }
 	  else {                                  # standard config line, push it onto the content stack
 	    push @{$this->{content}}, $_ if(!$c_comment);
 	  }
@@ -191,6 +188,8 @@ sub _open {
   }
   return 1;
 }
+
+
 
 
 
@@ -234,7 +233,7 @@ sub _parse {
 	$option = lc($option) if $this->{LowerCaseNames};
 	if ($this->{NoMultiOptions}) {                     # configurable via special method ::NoMultiOptions()
 	  if (exists $config->{$option}) {
-	    croak "Option $config->{$option} occurs more than once (level: $this->{level}, chunk $chunk)!\n";
+	    croak "Option \"$option\" occurs more than once (level: $this->{level}, chunk $chunk)!\n";
 	  }
 	  $config->{$option} = $value;
 	}
@@ -245,7 +244,7 @@ sub _parse {
 	      delete $config->{$option};
 	      push @{$config->{$option}}, $savevalue;
 	    }
-	    push @{$config->{$option}}, $value;            # it's still an array, just push
+	    push @{$config->{$option}}, $value;            # it's already an array, just push
 	  }
 	  else {
 	    $config->{$option} = $value;                   # standard config option, insert key/value pair into node
@@ -263,12 +262,52 @@ sub _parse {
 	push @newcontent, $_;                              # push onto new content stack
       }
       else {                                               # calling myself recursively, end of $block reached, $block_level is 0
-	if ($blockname) {
-	  $config->{$block}->{$blockname} =                # a named block, make it a hashref inside a hash within the current node
-	    $this->_parse($config->{$block}->{$blockname}, \@newcontent);
+	if ($blockname) {                                  # a named block, make it a hashref inside a hash within the current node
+	  if (exists $config->{$block}->{$blockname}) {    # the named block already exists, make it an array
+	    if ($this->{NoMultiOptions}) {
+	      croak "Named block \"<$block $blockname>\" occurs more than once (level: $this->{level}, chunk $chunk)!\n";
+	    }
+	    else {                                         # preserve existing data
+	      my $savevalue = $config->{$block}->{$blockname};
+	      delete $config->{$block}->{$blockname};
+	      my @ar;
+	      if (ref $savevalue eq "ARRAY") {
+		push @ar, @{$savevalue};                   # preserve array if any
+	      }
+	      else {
+		push @ar, $savevalue;
+	      }
+	      push @ar, $this->_parse( {}, \@newcontent);  # append it
+	      $config->{$block}->{$blockname} = \@ar;
+	    }
+	  }
+	  else {                                          # the first occurence of this particular named block
+	    $config->{$block}->{$blockname} = $this->_parse($config->{$block}->{$blockname}, \@newcontent);
+	  }
 	}
 	else {                                             # standard block
-	  $config->{$block} = $this->_parse($config->{$block}, \@newcontent);
+	  if (exists $config->{$block}) {                  # the block already exists, make it an array
+	    if ($this->{NoMultiOptions}) {
+	      croak "Block \"<$block>\" occurs more than once (level: $this->{level}, chunk $chunk)!\n";
+	    }
+	    else {
+	      my $savevalue = $config->{$block};
+	      delete $config->{$block};
+	      my @ar;
+	      if (ref $savevalue eq "ARRAY") {
+		push @ar, @{$savevalue};
+	      }
+	      else {
+		push @ar, $savevalue;
+	      }
+	      push @ar, $this->_parse( {}, \@newcontent);
+	      $config->{$block} = \@ar;
+	    }
+	  }
+	  else {
+	    # the first occurence of this particular block
+	    $config->{$block} = $this->_parse($config->{$block}, \@newcontent);
+	  }
 	}
 	undef $blockname;
 	undef $block;
@@ -287,6 +326,12 @@ sub _parse {
   }
   return $config;
 }
+
+
+
+
+
+
 
 
 sub NoMultiOptions {
@@ -376,7 +421,7 @@ Config::General - Generic Config Module
 
 =head1 DESCRIPTION
 
-This small module opens a config file and parses it's contents for you. The B<new> method
+This module opens a config file and parses it's contents for you. The B<new> method
 requires one parameter which needs to be a filename. The method B<getall> returns a hash
 which contains all options and it's associated values of your config file.
 
@@ -402,8 +447,9 @@ Possible ways to call B<new()>:
 
  $conf = new Config::General(
                        -file              => "rcfile",
-                       -AllowMultiOptions => "no"
-                       -LowerCaseNames    => "yes"
+                       -AllowMultiOptions => "no",
+                       -LowerCaseNames    => "yes",
+                       -UseApacheInclude  => 1
                             );
 
  $conf = new Config::General(
@@ -429,6 +475,8 @@ still supported. Possible parameters are:
     -LowerCaseNames     - if true (1 or "yes") then all options found
                           in the config will be converted to lowercase.
                           This allows you to provide case-in-sensitive configs
+    -UseApacheInclude   - consider "include ..." as valid include statement (just
+                          like the well known apache include statement).
 
 
 =item NoMultiOptions()
@@ -591,31 +639,6 @@ state counter, which indicates a block end.
 If the module cannot find an end-block statement, then this block will be ignored.
 
 
-=head1 IDENTICAL OPTIONS
-
-You may have more than one line of the same option with different values.
-
-Example:
- log  log1
- log  log2
- log  log2
-
-You will get a scalar if the option occured only once or an array if it occured
-more than once. If you expect multiple identical options, then you may need to 
-check if an option occured more than once:
-
- $allowed = $hash{jonas}->{tablestructure}->{allowed};
- if(ref($allowed) eq "ARRAY") {
-     @ALLOWED = @{$allowed};
- else {
-     @ALLOWED = ($allowed);
- }
-
-If you don't want to allow more than one identical options, you may turn it off
-by setting the flag I<AllowMutliOptions> in the B<new()> method to "no".
-If turned off, Config::General will complain about multiple occuring options
-whit identical names!
-
 
 =head1 NAMED BLOCKS
 
@@ -651,6 +674,62 @@ inside the block(which may again be nested!). As examples says more than words:
 
 You cannot have more than one named block with the same name because it will
 be stored in a hashref and therefore be overwritten if a block occurs once more.
+
+
+
+=head1 IDENTICAL OPTIONS
+
+You may have more than one line of the same option with different values.
+
+Example:
+ log  log1
+ log  log2
+ log  log2
+
+You will get a scalar if the option occured only once or an array if it occured
+more than once. If you expect multiple identical options, then you may need to 
+check if an option occured more than once:
+
+ $allowed = $hash{jonas}->{tablestructure}->{allowed};
+ if(ref($allowed) eq "ARRAY") {
+     @ALLOWED = @{$allowed};
+ else {
+     @ALLOWED = ($allowed);
+ }
+
+The same applies to blocks and named blocks too (they are described in more detail
+below). For example, if you have the following config:
+
+ <dir blah>
+   user max
+ </dir>
+ <dir blah>
+   user hannes
+ </dir>
+
+then you would end up with a data structure like this:
+
+ $VAR1 = {
+          'dir' => {
+                    'blah' => [
+                                {
+                                  'user' => 'max'
+                                },
+                                {
+                                  'user' => 'hannes'
+                                }
+                              ]
+                    }
+          };
+
+As you can see, the two identical blocks are stored in a hash which contains
+an array(-reference) of hashes.
+
+If you don't want to allow more than one identical options, you may turn it off
+by setting the flag I<AllowMutliOptions> in the B<new()> method to "no".
+If turned off, Config::General will complain about multiple occuring options
+whit identical names!
+
 
 
 =head1 LONG LINES
@@ -714,10 +793,15 @@ line inside the here-document.
 
 =head1 INCLUDES
 
-You can include an external file at any posision in you config file using the following statement
+You can include an external file at any posision in your config file using the following statement
 in your config file:
 
  <<include externalconfig.rc>>
+
+If you turned on B<-UseApacheInclude> (see B<new()>), then you can also use the following
+statement to include an external file:
+
+ include externalconfig.rc
 
 This file will be inserted at the position where it was found as if the contents of this file
 were directly at this position.
@@ -762,8 +846,26 @@ you can use a backlsash in front of it, to escape it. Example:
 In this example the value of $config{bgcolor} will be "#ffffcc", Config::General will not treat
 the number sign as the begin of a comment because of the leading backslash.
 
-Inside here-documents escaping of number signs is NOT required! 
+Inside here-documents escaping of number signs is NOT required!
 
+
+=head1 OBJECT ORIENTED INTERFACE
+
+There is a way to access a parsed config the OO-way.
+Use the module B<Config::General::Extended>, which is
+supplied with the Config::General distribution.
+
+
+=head1 SEE ALSO
+
+I recommend you to read the following documentations, which are supplied with perl:
+
+ perlreftut                     Perl references short introduction
+ perlref                        Perl references, the rest of the story
+ perldsc                        Perl data structures intro
+ perllol                        Perl data structures: arrays of arrays
+
+ Config::General::Extended      Object oriented interface to parsed configs
 
 =head1 COPYRIGHT
 
@@ -785,7 +887,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-1.22
+1.24
 
 =cut
 

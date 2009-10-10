@@ -1,0 +1,35 @@
+ 1.24:   - AllowMultiOptions printed out the value and not the
+           option itself, if more than one of this particular
+           option occured.
+         - added -UseApacheInclude feature, contributed by
+           Thomas Klausner <domm@zsi.at>
+         - fixed bug with multiple options stuff, which did not
+           work with blocks or named blocks. Pointed out by
+           Thomas Klausner <domm@zsi.at>, who meant it being
+           feature request, but in fact it was a bug (IMHO).
+	 - Config::General does now contain also it's OO-sister
+	   Config::General::Extended, which is from now on
+ 	   no more available as an extra module, because it
+	   lived a shadowy existence.
+	 - finally(!) created a Changelog file (this one, yes).
+
+ 1.23:   - fixed bug, which removed trailing or leading " even
+           no matching " was there.
+
+ 1.22:   - added a new option to new(): -LowerCaseNames, which
+           lowercases all option-names (feature request)
+
+ 1.21:   - lines with just one "#" became an option array named
+           "#" with empty entries, very weird, fixed
+
+ 1.20:   - added an if(exists... to new() for checking of the
+           existence of -AllowMultiOptions.
+         - use now "local $_" because it caused weird results
+           if a user used $_ with the module.
+
+ 1.19:   - you can escape "#" characters using a backslash: "\#"
+           which will now no more treated as a comment.
+         - comments inside here-documents will now remain in the
+           here-doc value.
+
+ previous history logs are lost in space :-(
