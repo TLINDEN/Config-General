@@ -1,5 +1,5 @@
 package Config::General::Interpolated;
-$Config::General::Interpolated::VERSION = "1.5";
+$Config::General::Interpolated::VERSION = "2.0";
 
 use strict;
 use Carp;
@@ -10,7 +10,7 @@ use Exporter ();
 # Import stuff from Config::General
 use vars qw(@ISA @EXPORT);
 @ISA = qw(Config::General Exporter);
-@EXPORT=qw(_set_regex _vars);
+
 
 sub new {
   #
@@ -33,13 +33,13 @@ sub _set_regex {
   # <autrijus@autrijus.org>, and I made some modifications.
   # thanx, autrijus. :)
   my $regex = qr{
-	               (^|[^\\])	# can be the beginning of the line
-	                                # but can't begin with a '\'
+	               (^|[^\\])	# $1: can be the beginning of the line
+	                                #     but can't begin with a '\'
 	               \$		# dollar sign
-	               (\{)?		# $1: optional opening curly
-	               ([a-zA-Z_]\w*)	# $2: capturing variable name
+	               (\{)?		# $2: optional opening curly
+	               ([a-zA-Z_]\w*)	# $3: capturing variable name
 	               (
-	               ?(2)		# $3: if there's the opening curly...
+	               ?(2)		# $4: if there's the opening curly...
 	               \}		#     ... match closing curly
 	              )
 	             }x;
@@ -47,76 +47,38 @@ sub _set_regex {
 }
 
 
+sub _interpolate  {
+  #
+  # interpolate a scalar value and keep the result
+  # on the varstack.
+  #
+  # called directly by Config::General::_parse_value()
+  #
+  my ($this, $key, $value) = @_;
 
-sub _vars {
-    my ($this, $config, $stack) = @_;
-    my %varstack;
-
-    $stack = {} unless defined $stack;	# make sure $stack is assigned.
-
-    # collect values that don't need to be substituted first
-    while (my ($key, $value) = each %{$config}) {
-	$varstack{$key} = $value
-	    unless ref($value) or $value =~ /$this->{regex}/;
+  $value =~ s{$this->{regex}}{
+    my $con = $1;
+    my $var = $3;
+    if (exists $this->{varstack}->{$var}) {
+      $con . $this->{varstack}->{$var};
     }
-
-    my $sub_interpolate = sub {
-      my ($value) = @_;
-
-      # this is a scalar
-      if ($value =~ m/^'/ and $value =~ m/'$/) {
-	# single-quote, remove it and don't do variable interpolation
-	$value =~ s/^'//;   $value =~ s/'$//;
+    else {
+      if ($this->{StrictVars}) {
+	croak "Use of uninitialized variable \$" . $var . "\n";
       }
       else {
-	$value =~ s{$this->{regex}}{
-	  my $con = $1;
-	  my $var = $3;
-	  my $v = $varstack{$var} || $stack->{$var};
-	  if (defined $v) {
-	    $con . $v;
-	  }
-	  else {
-	    if ($this->{StrictVars}) {
-	      croak "Use of uninitialized variable \$" . $var . "\n";
-	    }
-	    else {
-	      # be cool
-	      $con;
-	    }
-	  }
-	}egx;
-      }
-
-      return $value;
-    };
-
-    # interpolate variables
-    while (my ($key, $value) = each %{$config}) {
-      if (my $reftype = ref($value)) {
-	next unless $reftype eq 'ARRAY';
-
-	# we encounter multiple options
-	@{$value} = map { $sub_interpolate->($_) } @{$value};
-      }
-      else {
-	$value = $sub_interpolate->($value);
-	$config->{$key} = $value;
-	$varstack{$key} = $value;
+	# be cool
+	$con;
       }
     }
+  }egx;
 
-    # traverse the hierarchy part
-    while (my ($key, $value) = each %{$config}) {
-      # this is not a scalar recursive call to myself
-      if (ref($value) eq 'HASH') {
-	# called via Gonfig::General procedural
-	_vars($this, $value, {%{$stack}, %varstack});
-      }
-    }
+  $this->{varstack}->{$key} = $value;
 
-    return $config;
-}
+  return $value;
+};
+
+
 
 1;
 
@@ -132,7 +94,7 @@ Config::General::Interpolated - Parse variables within Config files
 
  use Config::General;
  $conf = new Config::General(
-    -CinfigFile      => 'configfile',
+    -ConfigFile      => 'configfile',
     -InterPolateVars => 1
  );
 
@@ -222,7 +184,7 @@ See L<http://www.perl.com/perl/misc/Artistic.html>
 
 =head1 VERSION
 
-1.5
+2.0
 
 =cut
 

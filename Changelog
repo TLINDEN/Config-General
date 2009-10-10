@@ -1,7 +1,23 @@
+ 2.11	 - heavy change in the variable interpolation code.
+	   Peter Sergeant <pete@clueball.com> reported this
+	   mis-behavior. The problem was that the whole hash
+	   was feeded to ::Interpolated.pm, but as we all
+	   know, perl hashes doesn't preserve the order. So,
+	   in our case the module sometimes was unable to
+	   resolve variablenames, because they were stored
+	   in a different location as it occured in the config.
+	   The change is, that Config::General now calls
+	   ::Interpolate.pm (new sub: _interpolate()) itself
+	   directly on a per-key/value pair basis. The internal
+	   varstack is now stored on $this globally. So, now
+	   a variable will be known when it occurs. period :-)
+
+
  2.10    - added -StrictVars documentation section to the POD,
 	   which was missing.
 
          - fixed a formatting error in the POD documentation.
+
 
  2.09    - added bugfix in '#' comment parsing. If current state
 	   was within a block, then /^   #/ was not ignored as

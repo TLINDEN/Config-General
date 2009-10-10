@@ -17,7 +17,7 @@ use strict;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = "2.10";
+$Config::General::VERSION = "2.11";
 
 use vars  qw(@ISA @EXPORT);
 @ISA    = qw(Exporter);
@@ -179,6 +179,22 @@ sub new {
     $self->{StoreDelimiter} = "   " if(!$self->{StoreDelimiter});
   }
 
+  if ($self->{InterPolateVars}) {
+    #
+    # we are blessing here again, to get into the ::InterPolated namespace
+    # for inheriting the methods available overthere, which we doesn't have.
+    #
+    bless($self, "Config::General::Interpolated");
+    eval {
+      require Config::General::Interpolated;
+    };
+    if ($@) {
+      croak $@;
+    }
+    # pre-compile the variable regexp
+    $self->{regex} = $self->_set_regex();
+  }
+
   # process as usual
   if (!$self->{parsed}) {
     if (exists $self->{StringContent}) {
@@ -222,16 +238,6 @@ sub new {
   #
   # Submodule handling. Parsing is already done at this point.
   #
-  if ($self->{InterPolateVars}) {
-    eval {
-      require Config::General::Interpolated;
-    };
-    if ($@) {
-      croak $@;
-    }
-    $self->{regex}  = Config::General::Interpolated::_set_regex();
-    $self->{config} = Config::General::Interpolated::_vars($self, $self->{config}, {});
-  }
   if ($self->{ExtendedAccess}) {
     #
     # we are blessing here again, to get into the ::Extended namespace
@@ -589,6 +595,10 @@ sub _parse_value {
 
   # avoid "Use of uninitialized value"
   $value = '' unless defined $value;
+
+  if ($this->{InterPolateVars}) {
+    $value = $this->_interpolate($option, $value);
+  }
 
   # make true/false values to 1 or 0 (-AutoTrue)
   if ($this->{AutoTrue}) {
@@ -1714,7 +1724,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-2.10
+2.11
 
 =cut
 
