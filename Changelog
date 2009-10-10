@@ -1,3 +1,15 @@
+ 2.13    - fixed bug reported by Steffen Schwigon <schwigon@webit.de>.
+	   the parser was still active inside a here-doc, which
+	   cause weird results if the here-doc contained
+	   multiple <<XXX strings.
+	   this bug has been fixed by re-organizing the _read()
+	   method. now the parser is only active outside of
+	   here-docs.
+
+	 - here-doc parsing bug fixed, which ignored the
+	   -SplitPolicy settings completely, now it is aware
+	   of the split policy
+
  2.12    - fixed cpan bugid #1768, stuff inside a hash given
 	   by the -DefaultConfig parameter was ignored by
 	   the new interpolation code, this has been fixed.

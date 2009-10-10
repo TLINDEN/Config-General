@@ -17,7 +17,7 @@ use strict;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = "2.12";
+$Config::General::VERSION = "2.13";
 
 use vars  qw(@ISA @EXPORT);
 @ISA    = qw(Exporter);
@@ -313,12 +313,15 @@ sub _read {
     chomp;
 
     if ($this->{CComments}) {
+      # look for C-Style comments, if activated
       if (/(\s*\/\*.*\*\/\s*)/) {
 	# single c-comment on one line
 	s/\s*\/\*.*\*\/\s*//;
       }
-      elsif (/^\s*\/\*/) {                        # the beginning of a C-comment ("/*"), from now on ignore everything.
-	if (/\*\/\s*$/) {                         # C-comment end is already there, so just ignore this line!
+      elsif (/^\s*\/\*/) {
+	# the beginning of a C-comment ("/*"), from now on ignore everything.
+	if (/\*\/\s*$/) {
+	  # C-comment end is already there, so just ignore this line!
 	  $c_comment = 0;
 	}
 	else {
@@ -329,74 +332,118 @@ sub _read {
 	if (!$c_comment) {
 	  warn "invalid syntax: found end of C-comment without previous start!\n";
 	}
-	$c_comment = 0;                           # the current C-comment ends here, go on
-	s/^.*\*\///;                              # if there is still stuff, it will be read
+	$c_comment = 0;    # the current C-comment ends here, go on
+	s/^.*\*\///;       # if there is still stuff, it will be read
       }
-      next if($c_comment);                        # ignore EVERYTHING from now on
+      next if($c_comment); # ignore EVERYTHING from now on, IF it IS a C-Comment
     }
 
-    if (!$hierend) {                            # patch by "Manuel Valente" <manuel@ripe.net>:
-      s/(?<!\\)#.+$//;                          # Remove comments
-      next if /^\s*#/;                             # Remove lines beginning with "#"
-      next if /^\s*$/;                          # Skip empty lines
-      s/\\#/#/g;                                # remove the \ char in front of masked "#"
-    }
-    if (/^\s*(\S+?)(\s*=\s*|\s+)<<(.+?)$/) {    # we are @ the beginning of a here-doc
-      $hier    = $1;                            # $hier is the actual here-doc
-      $hierend = $3;                            # the here-doc end string, i.e. "EOF"
-    }
-    elsif (defined $hierend && /^(\s*)\Q$hierend\E\s*$/) {             # the current here-doc ends here (allow spaces)
-      my $indent = $1;                          # preserve indentation
-      $hier .= " " . chr(182);                  # append a "¶" to the here-doc-name, so _parse will also preserver indentation
-      if ($indent) {
-	foreach (@hierdoc) {
-	  s/^$indent//;                         # i.e. the end was: "    EOF" then we remove "    " from every here-doc line
-	  $hier .= $_ . "\n";                   # and store it in $hier
-	}
-      }
-      else {
-	$hier .= join "\n", @hierdoc;           # there was no indentation of the end-string, so join it 1:1
-      }
-      push @{$this->{content}}, $hier;          # push it onto the content stack
-      @hierdoc = ();
-      undef $hier;
-      undef $hierend;
-    }
 
-    elsif (/\\$/) {                             # a multiline option, indicated by a trailing backslash
-      chop;
-      s/^\s*//;
-      $longline .= $_;                          # store in $longline
-    }
-    else {                                      # any "normal" config lines
-      if ($longline) {                          # previous stuff was a longline and this is the last line of the longline
-	s/^\s*//;
-	$longline .= $_;
-	push @{$this->{content}}, $longline;    # push it onto the content stack
-	undef $longline;
-      }
-      elsif ($hier) {                           # we are inside a here-doc
-	push @hierdoc, $_;                      # push onto here-dco stack
-      }
-      else {
-	# look for include statement(s)
-	my $incl_file;
-	if (/^\s*<<include\s+(.+?)>>\s*$/i || (/^\s*include\s+(.+?)\s*$/i && $this->{UseApacheInclude})) {
-	  $incl_file = $1;
-	  if ($this->{IncludeRelative} && $this->{configpath} && $incl_file !~ /^\//) {
-	    # include the file from within location of $this->{configfile}
-	    $this->_open($this->{configpath} . "/" . $incl_file);
-	  }
-	  else {
-	    # include the file from within pwd, or absolute
-	    $this->_open($incl_file);
+    if ($hier) {
+      # inside here-doc, only look for $hierend marker
+      if (/^(\s*)\Q$hierend\E\s*$/) {
+	my $indent = $1;                 # preserve indentation
+	$hier .= " " . chr(182);         # append a "¶" to the here-doc-name, so
+	                                 # _parse will also preserver indentation
+	if ($indent) {
+	  foreach (@hierdoc) {
+	    s/^$indent//;                # i.e. the end was: "    EOF" then we remove "    " from every here-doc line
+	    $hier .= $_ . "\n";          # and store it in $hier
 	  }
 	}
 	else {
-	  push @{$this->{content}}, $_;
+	  $hier .= join "\n", @hierdoc;  # there was no indentation of the end-string, so join it 1:1
 	}
+	push @{$this->{content}}, $hier; # push it onto the content stack
+	@hierdoc = ();
+	undef $hier;
+	undef $hierend;
+      }
+      else {
+	# everything else onto the stack
+	push @hierdoc, $_;
+      }
+      next;
+    }
+
+    ###
+    ### non-heredoc entries from now on
+    ##
+
+    # Remove comments and empty lines
+    s/(?<!\\)#.+$//;
+    next if /^\s*#/;
+    next if /^\s*$/;
+
+
+
+    # remove the \ char in front of masked "#", if any
+    s/\\#/#/g;
+
+
+
+
+    # look for here-doc identifier
+    if ($this->{SplitPolicy} eq 'guess') {
+      if (/^\s*(\S+?)(\s*=\s*|\s+)<<\s*(.+?)\s*$/) {
+	$hier    = $1;  # the actual here-doc variable name
+	$hierend = $3;  # the here-doc identifier, i.e. "EOF"
+	next;
       }
     }
+    else {
+      # no guess, use one of the configured strict split policies
+      if (/^\s*(\S+?)($this->{SplitDelimiter})<<\s*(.+?)\s*$/) {
+	$hier    = $1;  # the actual here-doc variable name
+	$hierend = $3;  # the here-doc identifier, i.e. "EOF"
+	next;
+      }
+    }
+
+
+
+    # look for multiline option, indicated by a trailing backslash
+    if (/\\$/) {
+      chop;
+      s/^\s*//;
+      $longline .= $_;
+      next;
+    }
+
+
+
+    ###
+    ### any "normal" config lines from now on
+    ###
+
+    if ($longline) {
+      # previous stuff was a longline and this is the last line of the longline
+      s/^\s*//;
+      $longline .= $_;
+      push @{$this->{content}}, $longline;    # push it onto the content stack
+      undef $longline;
+      next;
+    }
+    else {
+      # look for include statement(s)
+      my $incl_file;
+      if (/^\s*<<include\s+(.+?)>>\s*$/i || (/^\s*include\s+(.+?)\s*$/i && $this->{UseApacheInclude})) {
+	$incl_file = $1;
+	if ($this->{IncludeRelative} && $this->{configpath} && $incl_file !~ /^\//) {
+	  # include the file from within location of $this->{configfile}
+	  $this->_open($this->{configpath} . "/" . $incl_file);
+	}
+	else {
+	  # include the file from within pwd, or absolute
+	  $this->_open($incl_file);
+	}
+      }
+      else {
+	# standard entry, (option = value)
+	push @{$this->{content}}, $_;
+      }
+    }
+
   }
   return 1;
 }
@@ -1741,7 +1788,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-2.12
+2.13
 
 =cut
 
