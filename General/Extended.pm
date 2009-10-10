@@ -22,7 +22,7 @@ use vars qw(@ISA);
 use strict;
 
 
-$Config::General::Extended::VERSION = "1.3";
+$Config::General::Extended::VERSION = "1.4";
 
 
 sub obj {
@@ -126,7 +126,7 @@ sub is_scalar {
   # returns true if the given key contains a scalar(or number)
   #
   my($this, $key) = @_;
-  if (exists $this->{config}->{$key} && !ref(exists $this->{config}->{$key})) {
+  if (exists $this->{config}->{$key} && !ref($this->{config}->{$key})) {
     return 1;
   }
   return;
@@ -161,6 +161,22 @@ sub keys {
     return ();
   }
 }
+
+
+sub delete {
+  #
+  # delete the given key from the config, if any
+  # and return what is deleted (just as 'delete $hash{key}' does)
+  #
+  my($this, $key) = @_;
+  if (exists $this->{config}->{$key}) {
+    return delete $this->{config}->{$key};
+  }
+  else {
+    return undef;
+  }
+}
+
 
 sub save {
   #
@@ -437,6 +453,13 @@ config above you yould do that:
 
 You can use this method in B<foreach> loops as seen in an example above(obj() ).
 
+
+=item delete ('key')
+
+This method removes the given key and all associated data from the internal
+hash structure. If 'key' contained data, then this data will be returned,
+otherwise undef will be returned.
+
 =back
 
 
@@ -494,7 +517,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-1.3
+1.4
 
 =cut
 

@@ -37,6 +37,7 @@ INSTALLATION
 	to read the complete documentation, type:
 	perldoc Config::General
 	perldoc Config::General::Extended
+	perldoc Config::General::Interpolated
 
 	see some example config files which can
 	be parsed with Config::Genreal in the subdirectory
@@ -44,14 +45,19 @@ INSTALLATION
 
 
 COPYRIGHT
-       Copyright (c) 2000-2002 Thomas Linden
+       Config::General
+       Config::General::Extended
+           Copyright (c) 2000-2002 Thomas Linden <tom@daemon.de>
+
+       Config::General::Interpolated
+           Copyright (c) 2001      Wei-Hon Chen <plasmaball@pchome.com.tw>
 
        This library is free software; you can redistribute it
        and/or modify it under the same terms as Perl itself.
 
 
 BUGS
-       none known yet.
+       make test does currently not catch all possible scenarios.
 
 
 AUTHOR
@@ -59,4 +65,4 @@ AUTHOR
 
 
 VERSION
-	1.33
+	1.34

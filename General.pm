@@ -583,43 +583,70 @@ sub _store {
   foreach my $entry (sort keys %config) {
     if (ref($config{$entry}) eq "ARRAY") {
       foreach my $line (@{$config{$entry}}) {
-        # patch submitted by Peder Stray <peder@linpro.no> to catch
-        # arrays of hashes.
-        if (ref($line) eq "HASH") {                                                               
-          $config_string .= $indent . "<" . $entry . ">\n";                                        
-          $config_string .= $this->_store($level + 1, %{$line});
-          $config_string .= $indent . "</" . $entry . ">\n";                                      
-        }                                                                                         
-        else {                                                                                     
-          $line =~ s/#/\\#/g;                                                                      
-          $config_string .= $indent . $entry . "   " . $line . "\n";                               
-        } 
+        if (ref($line) eq "HASH") {
+	  $config_string .= $this->_write_hash($level, $entry, $line);
+        }
+        else {
+	  $config_string .= $this->_write_scalar($level, $entry, $line);
+        }
       }
     }
     elsif (ref($config{$entry}) eq "HASH") {
-      $config_string .= $indent . "<" . $entry . ">\n";
-      $config_string .= $this->_store($level + 1, %{$config{$entry}});
-      $config_string .= $indent . "</" . $entry . ">\n";
+      $config_string .= $this->_write_hash($level, $entry, $config{$entry});
     }
     else {
-      # scalar
-      if ($config{$entry} =~ /\n/) {
-	# it is a here doc
-	my @lines = split /\n/, $config{$entry};
-	$config_string .= $indent . $entry . " <<EOF\n";
-	foreach my $line(@lines) {
-	  $config_string .= $indent . $line . "\n";
-	}
-	$config_string .= $indent . "EOF\n";
-      }
-      else {
-	$config{$entry} =~ s/#/\\#/g;
-	$config_string .= $indent . $entry . "   " . $config{$entry}  . "\n";
-      }
+      $config_string .= $this->_write_scalar($level, $entry, $config{$entry});
     }
   }
 
   return $config_string;
+}
+
+
+sub _write_scalar {
+  #
+  # internal sub, which writes a scalar
+  # it returns it, in fact
+  #
+  my($this, $level, $entry, $line) = @_;
+
+  my $indent = "    " x $level;
+
+  my $config_string;
+
+  if ($line =~ /\n/) {
+    # it is a here doc
+    my @lines = split /\n/, $line;
+    $config_string .= $indent . $entry . " <<EOF\n";
+    foreach (@lines) {
+      $config_string .= $indent . $_ . "\n";
+    }
+    $config_string .= $indent . "EOF\n";
+  }
+  else {
+    # a simple stupid scalar entry
+    $line =~ s/#/\\#/g;
+    $config_string .= $indent . $entry . "   " . $line . "\n";
+  }
+
+  return $config_string;
+}
+
+sub _write_hash {
+  #
+  # internal sub, which writes a hash (block)
+  # it returns it, in fact
+  #
+  my($this, $level, $entry, $line) = @_;
+
+  my $indent = "    " x $level;
+  my $config_string;
+
+  $config_string .= $indent . "<" . $entry . ">\n";
+  $config_string .= $this->_store($level + 1, %{$line});
+  $config_string .= $indent . "</" . $entry . ">\n";
+
+  return $config_string
 }
 
 
@@ -881,9 +908,9 @@ The resulting config structure would look like this after parsing:
 This method allows the user (or, the "maintainer" of the configfile for your
 application) to set multiple pre-defined values for one option.
 
-Please beware, that all occurences of thos variables will be handled this
+Please beware, that all occurencies of those variables will be handled this
 way, there is no way to distinguish between variables in different scopes.
-That means, that if "Mode" would also occur inside a named block, it would
+That means, if "Mode" would also occur inside a named block, it would
 also parsed this way.
 
 Values which are not defined in the hash-ref supplied to the parameter B<-FlagBits>
@@ -1440,7 +1467,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-1.33
+1.34
 
 =cut
 

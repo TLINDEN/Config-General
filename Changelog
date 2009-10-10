@@ -1,4 +1,25 @@
- 1.32    - fixed bug in _parse_value() which caused perl to complain
+ 1.34    - Danial Pearce <danial@infoxchange.net.au> reported a bug
+           in _store(), which caused the module to create scalar
+	   entries even if the entry contained newlines. While
+	   Danial supplied a patch to fix this - thx(TM) - I
+	   did not apply it, because I "outsourced" this kind of
+	   stuff to the subroutine _write_scalar(), see next.
+
+         - added internal methods _write_scalar() and _write_hash()
+	   to simplify _store(), which did the same thing more
+	   than once, which is a good time to create a sub which
+	   does the job.
+
+         - fixed cut'n paste bug in General/Extended.pm reported by
+	   Danial Pearce <danial@infoxchange.net.au>, which caused
+	   Config::General::Extended::is_scalar() to return true even
+	   when the key you pass in is an array.
+
+         - added new method Config::General::Extended::delete() suggested
+	   by Danial Pearce <danial@infoxchange.net.au>, which deletes
+	   the given key from the config.
+
+ 1.33    - fixed bug in _parse_value() which caused perl to complain
 	   with "Use of uninitialized value in..." if a value was
 	   empty.
 
