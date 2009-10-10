@@ -1,3 +1,15 @@
+ 1.25:   - include statements are now case insensitive
+ 	 - include statements may now also being used with
+	   indentation(leading and following whitespaces are
+	   allowed)
+	 - changed the end here-doc regexp from .+? to \S+?
+	   so "  <<include..." works as expected (this was a bug, imo)
+	 - added new option -IncludeRelative (idea contributed
+	   by Valerio_Valdez Paolini <paolini@students.cs.unibo.it>
+	   and Anton Luht <luht@ank.ru> :-)
+	   This allows to include files from the location of
+	   the configfile instead from the working directory.
+
  1.24:   - AllowMultiOptions printed out the value and not the
            option itself, if more than one of this particular
            option occured.

@@ -17,7 +17,7 @@ use FileHandle;
 use strict;
 use Carp;
 
-$Config::General::VERSION = "1.24";
+$Config::General::VERSION = "1.25";
 
 sub new {
   #
@@ -46,6 +46,11 @@ sub new {
 	$self->{LowerCaseNames} = 1;
       }
     }
+    if (exists $conf{-IncludeRelative}) {
+      if ($conf{-IncludeRelative}) {
+	$self->{IncludeRelative} = 1;
+      }
+    }
     # contributed by Thomas Klausner <domm@zsi.at>
     if (exists $conf{-UseApacheInclude}) {
       if ($conf{-UseApacheInclude}) {
@@ -72,6 +77,8 @@ sub new {
   else {
     # open the file and read the contents in
     $self->{configfile} = $configfile;
+    # look if is is an absolute path and save the basename if it is
+    ($self->{configpath}) = $configfile =~ /^(\/.*)\//;
     $self->_open($self->{configfile});
     # now, we parse immdediately, getall simply returns the whole hash
     $self->{config} = $self->_parse({}, $self->{content});
@@ -115,7 +122,7 @@ sub _open {
 	next if /^\s*$/;                          # Skip empty lines
 	s/\\#/#/g;                                # remove the \ char in front of masked "#"
       }
-      if (/^\s*(.+?)(\s*=\s*|\s+)<<(.+?)$/) {     # we are @ the beginning of a here-doc
+      if (/^\s*(\S+?)(\s*=\s*|\s+)<<(.+?)$/) {    # we are @ the beginning of a here-doc
 	$hier = $1;                               # $hier is the actual here-doc
 	$hierend = $3;                            # the here-doc end string, i.e. "EOF"
       }
@@ -148,7 +155,7 @@ sub _open {
 	if (!$c_comment) {
 	  warn "invalid syntax: found end of C-comment without previous start!\n";
 	}
-	$c_comment = 0;                           # the current C-comment ends here, go on 
+	$c_comment = 0;                           # the current C-comment ends here, go on
       }
       elsif (/\\$/) {                             # a multiline option, indicated by a trailing backslash
 	chop;
@@ -166,17 +173,23 @@ sub _open {
 	  push @hierdoc, $_;                      # push onto here-dco stack
 	}
 	else {
-	  if (/^<<include (.+?)>>$/) {            # include external config file
-	    $this->_open($1) if(!$c_comment);     # call _open with the argument to include assuming it is a filename
-	  }
-	  elsif ((/^[Ii]nclude (.+?)$/) && ($this->{UseApacheInclude})) {
-	    # contributed by Thomas Klausner <domm@zsi.at>
-	    # include external config file, Apache Style
-	    # call _open with the argument to include assuming it is a filename
-	    $this->_open($1) if(!$c_comment);
-	  }
-	  else {                                  # standard config line, push it onto the content stack
-	    push @{$this->{content}}, $_ if(!$c_comment);
+	  # look for include statement(s)
+	  if (!$c_comment) {
+	    my $incl_file;
+	    if (/^\s*<<include (.+?)>>\s*$/i || (/^\s*include (.+?)\s*$/i && $this->{UseApacheInclude})) {
+	      $incl_file = $1;
+	      if ($this->{IncludeRelative} && $this->{configpath} && $incl_file !~ /^\//) {
+		# include the file from within location of $this->{configfile}
+		$this->_open($this->{configpath} . "/" . $incl_file);
+	      }
+	      else {
+		# include the file from within pwd, or absolute
+		$this->_open($incl_file);
+	      }
+	    }
+	    else {
+	      push @{$this->{content}}, $_;
+	    }
 	  }
 	}
       }
@@ -449,7 +462,8 @@ Possible ways to call B<new()>:
                        -file              => "rcfile",
                        -AllowMultiOptions => "no",
                        -LowerCaseNames    => "yes",
-                       -UseApacheInclude  => 1
+                       -UseApacheInclude  => 1,
+                       -IncludeRelative   => 1,
                             );
 
  $conf = new Config::General(
@@ -477,6 +491,10 @@ still supported. Possible parameters are:
                           This allows you to provide case-in-sensitive configs
     -UseApacheInclude   - consider "include ..." as valid include statement (just
                           like the well known apache include statement).
+    -IncludeRelative    - included files with a relative path (i.e. "cfg/blah.conf")
+                          will be opened from within the location of the configfile,
+                          if the configfile has an absolute pathname (i.e.
+                          "/etc/main.conf").
 
 
 =item NoMultiOptions()
@@ -808,7 +826,31 @@ were directly at this position.
 
 You can also recurively include files, so an included file may include another one and so on.
 Beware that you do not recursively load the same file, you will end with an errormessage like
-"too many files in system!".
+"too many open files in system!".
+
+By default included files with a relative pathname will be opened from within the current
+working directory. Under some circumstances it maybe possible to
+open included files from the directory, where the configfile resides. You need to turn on
+the option B<-IncludeRelative> (see B<new()>) if you want that. An example:
+
+ my $conf = Config::General(
+                             -file => "/etc/crypt.d/server.cfg"
+                             -IncludeRelative => 1
+                           );
+
+ /etc/crypt.d/server.cfg:
+  <<include acl.cfg>>
+
+In this example Config::General will try to include I<acl.cfg> from I</etc/crypt.d>:
+
+ /etc/crypt.d/acl.cfg
+
+The default behavior (if B<-IncludeRelative> is B<not> set!) will be to open just I<acl.cfg>,
+whereever it is, i.e. if you did a chdir("/usr/local/etc"), then Config::General will include:
+
+ /usr/local/etc/acl.cfg
+
+Include statements can be case insensitive (added in version 1.25).
 
 Include statements will be ignored within C-Comments and here-documents.
 
