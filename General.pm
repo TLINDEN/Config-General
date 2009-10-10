@@ -17,7 +17,7 @@ use strict;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = "2.14";
+$Config::General::VERSION = "2.15";
 
 use vars  qw(@ISA @EXPORT);
 @ISA    = qw(Exporter);
@@ -493,13 +493,21 @@ sub _parse {
     }
     if (! defined $block) {                                # not inside a block @ the moment
       if (/^<([^\/]+?.*?)>$/) {                            # look if it is a block
-	$this->{level} += 1;
 	$block = $1;                                       # store block name
 	($grab, $blockname) = split /\s\s*/, $block, 2;    # is it a named block? if yes, store the name separately
 	if ($blockname) {
 	  $block = $grab;
 	}
+	if ($this->{InterPolateVars}) {
+	  # interpolate block(name), add "<" and ">" to the key, because
+	  # it is sure that such keys does not exist otherwise.
+	  $block     = $this->_interpolate("<$block>", $block);
+	  if ($blockname) {
+	    $blockname = $this->_interpolate("<$blockname>", $blockname);
+	  }
+	}
 	$block = lc($block) if $this->{LowerCaseNames};    # only for blocks lc(), if configured via new()
+	$this->{level} += 1;
 	undef @newcontent;
 	next;
       }
@@ -579,7 +587,12 @@ sub _parse {
 	      }
 	    }
 	  }
-	  else {                                          # the first occurence of this particular named block
+	  elsif (ref($config->{$block}) eq "ARRAY") {
+	    croak "Cannot add named block <$block $blockname> to hash! Block <$block> occurs more than once.\n"
+	         ."Turn on -MergeDuplicateBlocks or make sure <$block> occurs only once in the config.\n";
+	  }
+	  else {
+	    # the first occurence of this particular named block
 	    $config->{$block}->{$blockname} = $this->_parse($config->{$block}->{$blockname}, \@newcontent);
 	  }
 	  $this->_backlast($blockname);
@@ -905,7 +918,7 @@ sub SaveConfig {
       croak "The second parameter must be a reference to a hash!";
     }
     else {
-      (new Config::General($hash))->save_file($file);
+      (new Config::General(-ConfigHash => $hash))->save_file($file);
     }
   }
 }
@@ -925,7 +938,7 @@ sub SaveConfigString {
       croak "The parameter must be a reference to a hash!";
     }
     else {
-      return (new Config::General($hash))->save_string();
+      return (new Config::General(-ConfigHash => $hash))->save_string();
     }
   }
 }
@@ -1780,7 +1793,6 @@ modify it under the same terms as Perl itself.
 
 none known yet.
 
-
 =head1 AUTHOR
 
 Thomas Linden <tom@daemon.de>
@@ -1788,7 +1800,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-2.14
+2.15
 
 =cut
 

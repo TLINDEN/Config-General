@@ -125,8 +125,6 @@ sub _var_hash_stacker {
   #
   my ($this, $config) = @_;
 
-  
-
   foreach my $key (keys %{$config}) {
     if (ref($config->{$key}) eq "ARRAY" ) {
       $this->{level}++;
@@ -148,7 +146,6 @@ sub _var_hash_stacker {
     }
   }
 
-  #$this->{level}--;
   return $config;
 }
 
@@ -160,7 +157,6 @@ sub _var_array_stacker {
   my ($this, $config, $key) = @_;
 
   my @new;
-  #$this->{level}++;
 
   foreach my $entry (@{$config}) {
     if (ref($entry) eq "HASH") {

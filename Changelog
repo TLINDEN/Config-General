@@ -1,3 +1,27 @@
+ 2.15    - fixed Bug in SaveConfig***, which didn't work.
+         - applied patch by Robb Canfield <robb@canfield.com>,
+	   which fixes a bug in the variable interpolation
+	   scheme. It did not interpolate blocks nor
+	   blocknames. This patch fixes this. Patch slightly
+	   modified by me(interpolation on block and blocknames).
+	 - enhanced test for variable interpolation to
+	   reflect this.
+	 - added check if a named block occurs after the underlying
+	   block is already an array, which is not possible.
+	   perl cannot add a hashref to an array. i.e.:
+	   <bl>
+ 	     a = 1
+	   </bl>
+	   <bl>
+ 	     b = 1
+	   </bl>
+	   <bl blubber>
+ 	     c = 1
+	   </bl>
+	   As you can see, "<bl>" will be an array, and "blubber"
+	   cannot be stored in any way on this array.
+	   The module croaks now if such construct occurs.
+
  2.14    - fixed bug reported by Francisco Olarte Sanz
 	   <folarte@peoplecall.com>, which caused _parse to
 	   ignore blocks with the name "0": 
