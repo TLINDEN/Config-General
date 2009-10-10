@@ -1,3 +1,26 @@
+ 2.32
+	- fixed rt.cpan.org#24232 - import ENV vars only if defined
+
+	- fixed rt.cpan.org#20742 - dont' overwrite a var if re-defined
+	  in current scope, interpolation failed for re-defined vars and used
+	  the value of the var defined in outer scope, not the current one.
+
+	- fixed rt.cpan.org#17852 - a 0 as blockname were ignored. applied
+	  patch by SCOP to t/run.t to test for 0 in blocks.
+
+	- applied most hints Perl::Critic had about Config::General:
+	  o the functions ParseConfig SaveConfig SaveConfigString must
+	    now imported implicitly. This might break existing code, but
+	    is easily to fix.
+	  o using IO::File instead of open().
+	  o General.pm qualifies for "stern" level after all.
+
+	- added much more tests to t/run.t for 'make test'.
+
+	- using Test::More now.
+
+
+
  2.31
 	 - applied patches by Jason Rhinelander <jagerman@jagerman.com>:
 	  	o bugfix: multiple levels if include files didn't

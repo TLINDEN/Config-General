@@ -2,7 +2,7 @@
 # Config::General::Interpolated - special Class based on Config::General
 #
 # Copyright (c) 2001 by Wei-Hon Chen <plasmaball@pchome.com.tw>.
-# Copyright (c) 2000-2006 by Thomas Linden <tom@daemon.de>.
+# Copyright (c) 2000-2007 by Thomas Linden <tlinden |AT| cpan.org>.
 # All Rights Reserved. Std. disclaimer applies.
 # Artificial License, same as perl itself. Have fun.
 #
@@ -75,23 +75,26 @@ sub _interpolate  {
   else {
     # incorporate variables outside current scope(block) into
     # our scope to make them visible to _interpolate()
+
     foreach my $key (keys %{$this->{stack}->{ $this->{level} - 1}->{ $this->{lastkey} }}) {
-      $this->{stack}->{ $this->{level} }->{ $this->{prevkey} }->{$key} =
-	$this->{stack}->{ $this->{level} - 1}->{ $this->{lastkey} }->{$key};
+      if (! exists $this->{stack}->{ $this->{level} }->{ $this->{prevkey} }->{$key}) {
+	# only import a variable if it is not re-defined in current scope! (rt.cpan.org bug #20742
+	$this->{stack}->{ $this->{level} }->{ $this->{prevkey} }->{$key} = $this->{stack}->{ $this->{level} - 1}->{ $this->{lastkey} }->{$key};
+      }
     }
+
     $prevkey = $this->{prevkey};
   }
 
   $value =~ s{$this->{regex}}{
     my $con = $1;
     my $var = $3;
-    $var = lc($var) if $this->{LowerCaseNames};
-    if (exists $this->{stack}->{ $this->{level} }->{ $prevkey }->{$var}) {
-      $con . $this->{stack}->{ $this->{level} }->{ $prevkey }->{$var};
+    my $var_lc = $this->{LowerCaseNames} ? lc($var) : $var;
+    if (exists $this->{stack}->{ $this->{level} }->{ $prevkey }->{$var_lc}) {
+      $con . $this->{stack}->{ $this->{level} }->{ $prevkey }->{$var_lc};
     }
     elsif ($this->{InterPolateEnv}) {
       # may lead to vulnerabilities, by default flag turned off
-      $con . $ENV{$var};
       if (defined($ENV{$var})) {
 	$con . $ENV{$var};
       }
@@ -290,14 +293,14 @@ L<Config::General>
 
 =head1 AUTHORS
 
- Thomas Linden <tom@daemon.de>
+ Thomas Linden <tlinden |AT| cpan.org>
  Autrijus Tang <autrijus@autrijus.org>
  Wei-Hon Chen <plasmaball@pchome.com.tw>
 
 =head1 COPYRIGHT
 
 Copyright 2001 by Wei-Hon Chen E<lt>plasmaball@pchome.com.twE<gt>.
-Copyright 2002-2006 by Thomas Linden <tom@daemon.de>.
+Copyright 2002-2007 by Thomas Linden <tlinden |AT| cpan.org>.
 
 This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.

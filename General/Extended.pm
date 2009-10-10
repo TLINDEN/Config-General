@@ -1,7 +1,7 @@
 #
 # Config::General::Extended - special Class based on Config::General
 #
-# Copyright (c) 2000-2006 Thomas Linden <tom@daemon.de>.
+# Copyright (c) 2000-2007 Thomas Linden <tlinden |AT| cpan.org>.
 # All Rights Reserved. Std. disclaimer applies.
 # Artificial License, same as perl itself. Have fun.
 #
@@ -576,7 +576,7 @@ values under the given key will be overwritten.
 
 =head1 COPYRIGHT
 
-Copyright (c) 2000-2006 Thomas Linden
+Copyright (c) 2000-2007 Thomas Linden
 
 This library is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
@@ -589,8 +589,7 @@ none known yet.
 
 =head1 AUTHOR
 
-Thomas Linden <tom@daemon.de>
-
+Thomas Linden <tlinden |AT| cpan.org>
 
 =head1 VERSION
 

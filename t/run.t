@@ -6,174 +6,142 @@
 #
 # Under normal circumstances every test should succeed.
 
-BEGIN { $| = 1; print "1..24\n";}
-use lib "blib/lib";
-use Config::General;
+
 use Data::Dumper;
+use Test::More tests => 35;
+#use Test::More qw(no_plan);
 
-sub pause;
+### 1
+BEGIN { use_ok "Config::General"};
+require_ok( 'Config::General' );
 
-print "ok\n";
-print STDERR " .. ok # loading Config::General\n";
-
-
-foreach (2..7) {
-  &p("t/cfg." . $_, $_);
-  pause;
+### 2 - 7
+foreach my $num (2..7) {
+  my $cfg = "t/cfg.$num";
+  open T, "<$cfg";
+  my @file = <T>;
+  close T;
+  my $fst = $file[0];
+  chomp $fst;
+  $fst =~ s/\#\s*//g;
+  eval {
+    my $conf = new Config::General($cfg);
+    my %hash = $conf->getall;
+  };
+  ok(!$@, "$fst");
 }
 
+
+
+### 8
 my $conf = new Config::General("t/cfg.8");
 my %hash = $conf->getall;
 $conf->save_file("t/cfg.out");
-
 my $copy = new Config::General("t/cfg.out");
 my %copyhash = $copy->getall;
+is_deeply(\%hash, \%copyhash, "Writing Config Hash to disk and compare with original");
 
-my $a = \%hash;
-my $b = \%copyhash;
 
-# now see if the saved hash is still the same as the
-# one we got from cfg.8
-if (&comp($a,$b)) {
-  print "ok\n";
-  print STDERR " ... ok # Writing Config Hash to disk and compare with original\n";
-}
-else {
-  print "8 not ok\n";
-  print STDERR "8 ... not ok\n";
-}
-pause;
-
-############## Extended Tests #################
-
+### 9
 $conf = new Config::General(
-			    -ExtendedAccess => 1,
-			    -ConfigFile     => "t/test.rc");
-print "ok\n";
-print STDERR " ... ok # Creating a new object from config file\n";
-pause;
+ -ExtendedAccess => 1,
+ -ConfigFile     => "t/test.rc");
+ok($conf, "Creating a new object from config file");
 
 
-
-# now test the new notation of new()
+### 10
 my $conf2 = new Config::General(
-				-ExtendedAccess    => 1,
-				-ConfigFile        => "t/test.rc",
-				-AllowMultiOptions => "yes"
-			       );
-print "ok\n";
-print STDERR " ... ok # Creating a new object using the hash parameter way\n";
-pause;
+ -ExtendedAccess    => 1,
+ -ConfigFile        => "t/test.rc",
+ -AllowMultiOptions => "yes"
+);
+ok($conf2, "Creating a new object using the hash parameter way");
 
 
-
+### 11
 my $domain = $conf->obj("domain");
-print "ok\n";
-print STDERR " .. ok # Creating a new object from a block\n";
-pause;
+ok($domain, "Creating a new object from a block");
 
 
-
+### 12
 my $addr = $domain->obj("bar.de");
-print "ok\n";
-print STDERR " .. ok # Creating a new object from a sub block\n";
-pause;
+ok($addr, "Creating a new object from a sub block");
 
 
-
+### 13
 my @keys = $conf->keys("domain");
-print "ok\n";
-print STDERR " .. ok # Getting values from the object\n";
-pause;
+ok($#keys > -1, "Getting values from the object");
 
 
-
-
+### 14
 # test various OO methods
+my $a;
 if ($conf->is_hash("domain")) {
   my $domains = $conf->obj("domain");
   foreach my $domain ($conf->keys("domain")) {
     my $domain_obj = $domains->obj($domain);
     foreach my $address ($domains->keys($domain)) {
-      my $blah = $domain_obj->value($address);
+      $a = $domain_obj->value($address);
     }
   }
 }
-print "ok\n";
-print STDERR " .. ok # Using keys() and values() \n";
-pause;
+ok($a, "Using keys() and values()");
 
-
-
+### 15
 # test AUTOLOAD methods
-my $conf3 = new Config::General(
-				-ExtendedAccess => 1,
-				-ConfigHash     => { name => "Moser", prename => "Hannes"}
-				);
-my $n = $conf3->name;
-my $p = $conf3->prename;
-$conf3->name("Meier");
-$conf3->prename("Max");
-$conf3->save_file("t/test.cfg");
-
-print "ok\n";
-print STDERR " .. ok # Using AUTOLOAD methods\n";
-pause;
-
+eval {
+  my $conf3 = new Config::General(
+     -ExtendedAccess => 1,
+     -ConfigHash     => { name => "Moser", prename => "Hannes"}
+  );
+  my $n = $conf3->name;
+  my $p = $conf3->prename;
+  $conf3->name("Meier");
+  $conf3->prename("Max");
+  $conf3->save_file("t/test.cfg");
+};
+ok (!$@, "Using AUTOLOAD methods");
 
 
+### 16
 # testing variable interpolation
 my $conf16 = new Config::General(-ConfigFile => "t/cfg.16", -InterPolateVars => 1, -StrictVars => 0);
 my %h16 = $conf16->getall();
-if($h16{etc}->{log} eq "/usr/local/log/logfile") {
-   print "ok\n";
-   print STDERR " .. ok # Testing variable interpolation\n";
+if($h16{etc}->{log} eq "/usr/log/logfile" and
+   $h16{etc}->{users}->{home} eq "/usr/home/max" and
+   exists $h16{dir}->{teri}->{bl}) {
+  pass("Testing variable interpolation");
 }
 else {
-   print "16 not ok\n";
-   print STDERR "16 not ok\n";
+  fail("Testing variable interpolation");
 }
-pause;
 
 
+### 17
 # testing value pre-setting using a hash
 my $conf17 = new Config::General(
-				 -file => "t/cfg.17",
-				 -DefaultConfig => { home => "/exports/home", logs => "/var/backlog" },
-				 -MergeDuplicateOptions => 1,
-				 -MergeDuplicateBlocks => 1
-				 );
+ -file => "t/cfg.17",
+ -DefaultConfig => { home => "/exports/home", logs => "/var/backlog" },
+ -MergeDuplicateOptions => 1,
+ -MergeDuplicateBlocks => 1
+);
 my %h17 = $conf17->getall();
-if ($h17{home} eq "/home/users") {
-  print "ok\n";
-  print STDERR " .. ok # Testing value pre-setting using a hash\n";
-}
-else {
-  print "17 not ok\n";
-  print STDERR "17 not ok\n";
-}
-pause;
+ok ($h17{home} eq "/home/users", "Testing value pre-setting using a hash");
 
 
+### 18
 # testing value pre-setting using a string
 my $conf18 = new Config::General(
-				 -file => "t/cfg.17", # reuse the file
-				 -DefaultConfig => "home = /exports/home\nlogs = /var/backlog",
-				 -MergeDuplicateOptions => 1,
-				 -MergeDuplicateBlocks => 1
-				 );
+ -file => "t/cfg.17", # reuse the file
+ -DefaultConfig => "home = /exports/home\nlogs = /var/backlog",
+ -MergeDuplicateOptions => 1,
+ -MergeDuplicateBlocks => 1
+);
 my %h18 = $conf18->getall();
-if ($h18{home} eq "/home/users") {
-  print "ok\n";
-  print STDERR " .. ok # Testing value pre-setting using a string\n";
-}
-else {
-  print "18 not ok\n";
-  print STDERR "18 not ok\n";
-}
-pause;
+ok ($h18{home} eq "/home/users", "Testing value pre-setting using a string");
 
 
+### 19
 # testing various otion/value assignment notations
 my $conf19 = new Config::General(-file => "t/cfg.19");
 my %h19 = $conf19->getall();
@@ -183,51 +151,26 @@ foreach my $key (keys %h19) {
     $works = 0;
   }
 }
-if ($works) {
-  print "ok\n";
-  print STDERR " .. ok # Testing various otion/value assignment notations\n";
-}
-else {
-  print "19 not ok\n";
-  print STDERR "19 not ok\n";
-}
-pause;
+ok ($works, "Testing various otion/value assignment notations");
 
-
+### 20
 # testing files() method
 my $conf20 = Config::General->new(
     -file => "t/cfg.20.a",
     -MergeDuplicateOptions => 1
 );
 my %h20 = $conf20->getall();
-
-my %expected_h20 = (
-    'seen_cfg.20.a' => 'true',
-    'seen_cfg.20.b' => 'true',
-    'seen_cfg.20.c' => 'true',
-    'last'          => 'cfg.20.c',
-);
-
 my %files = map { $_ => 1 } $conf20->files();
-
 my %expected_files = map { $_ => 1 } (
     't/cfg.20.a',
     't/cfg.20.b',
     't/cfg.20.c',
 );
+is_deeply (\%files, \%expected_files, "testing files() method");
 
-if (&comp(\%h20, \%expected_h20) and &comp(\%files, \%expected_files)) {
-  print "ok\n";
-  print STDERR " .. ok # testing files() method\n";
-}
-else {
-  print "20 not ok\n";
-  print STDERR "20 not ok\n";
-}
-pause;
 
+### 22
 # testing improved IncludeRelative option
-
 # First try without -IncludeRelative
 # this should fail
 eval {
@@ -236,25 +179,17 @@ eval {
         -MergeDuplicateOptions => 1,
     );
 };
-if ($@) {
-  print "ok\n";
-  print STDERR " .. ok # prevented from loading relative cfgs without -IncludeRelative\n";
-}
-else {
-  print "21 not ok\n";
-  print STDERR "21 not ok\n";
-}
-pause;
+ok ($@, "prevented from loading relative cfgs without -IncludeRelative");
 
+
+### 23
 # Now try with -IncludeRelative
 # this should fail
-
 my $conf22 = Config::General->new(
     -file => "t/sub1/sub2/sub3/cfg.sub3",
     -MergeDuplicateOptions => 1,
     -IncludeRelative       => 1,
 );
-
 my %h22 = $conf22->getall;
 my %expected_h22 = (
     'sub3_seen'  => 'yup',
@@ -264,24 +199,15 @@ my %expected_h22 = (
     'sub1b_seen' => 'yup',
     'fruit'      => 'mango',
 );
+is_deeply(\%h22, \%expected_h22, "loaded relative to included files");
 
-if (&comp(\%h22, \%expected_h22)) {
-  print "ok\n";
-  print STDERR " .. ok # loaded relative to included files\n";
-}
-else {
-  print "22 not ok\n";
-  print STDERR "22 not ok\n";
-}
-pause;
 
+### 24
 # Testing IncludeDirectories option
-
 my $conf23 = Config::General->new(
   -String => "<<include t/sub1>>",
   -IncludeDirectories => 1
 );
-
 my %h23 = $conf23->getall;
 my %expected_h23 = (
   fruit => 'mango',
@@ -291,45 +217,26 @@ my %expected_h23 = (
   test2 => 'value2',
   test3 => 'value3'
 );
-
-if (&comp(\%h23, \%expected_h23)) {
-  print "ok\n";
-  print STDERR " .. ok # including a directory with -IncludeDirectories\n";
-}
-else {
-  print "23 not ok\n";
-  print STDERR "23 not ok\n";
-}
-pause;
+is_deeply(\%h23, \%expected_h23, "including a directory with -IncludeDirectories");
 
 
+### 24
 # Testing IncludeGlob option
-
 my $conf24 = Config::General->new(
   -String => "<<include t/sub1/cfg.sub[123]{c,d,e}>>",
   -IncludeGlob => 1
 );
-
 my %h24 = $conf24->getall;
 my %expected_h24 = (
   test => 'value',
   test2 => 'value2',
   test3 => 'value3'
 );
-
-if (&comp(\%h24, \%expected_h24)) {
-  print "ok\n";
-  print STDERR " .. ok # including multiple files via glob pattern with -IncludeGlob\n";
-}
-else {
-  print "24 not ok\n";
-  print STDERR "24 not ok\n";
-}
-pause;
+is_deeply(\%h24, \%expected_h24, "including multiple files via glob pattern with -IncludeGlob");
 
 
+### 25
 # Testing block and block name quoting
-
 my $conf25 = Config::General->new(
   -String => <<TEST,
 <block "/">
@@ -348,66 +255,142 @@ TEST
   -SlashIsDirectory => 1
 );
 my %h25 = $conf25->getall;
-
-
-
 my %expected_h25 = (
   block => { '/' => { opt1 => 'val1' } },
   'block2 /' => { opt2 => 'val2' },
   'block 3' => { '/' => { opt3 => 'val3' } },
   block4 => { '/' => { opt4 => 'val4' } }
 );
+is_deeply(\%h25, \%expected_h25, "block and block name quoting");
 
-if (&comp(\%h25, \%expected_h25)) {
-  print "ok\n";
-  print STDERR " .. ok # block and block name quoting\n";
+
+### 26
+# Testing 0-value handling
+my $conf26 = Config::General->new(
+ -String => <<TEST,
+<foo 0>
+  0
+</foo>
+TEST
+);
+my %h26 = $conf26->getall;
+my %expected_h26 = (
+  foo => { 0 => { 0 => '' } },
+);
+is_deeply(\%h26, \%expected_h26, "testing 0-values in block names");
+
+
+
+#
+# look if invalid input gets rejected right
+#
+
+### 27
+# testing invalid parameter calls, expected to fail
+my @pt = (
+	  {
+	   p => {-ConfigHash => "StringNotHash"},
+	   t => "-ConfigHash HASH required"
+	  },
+	  {
+	   p => {-String => {}},
+	   t => "-String STRING required"
+	  },
+	  {
+	   p => {-ConfigFile => {}},
+	   t => "-ConfigFile STRING required"
+	   },
+	  {
+	   p => {-ConfigFile => "NoFile"},
+	   t => "-ConfigFile STRING File must exist and be readable"
+	   }
+);
+foreach my $C (@pt) {
+  eval {
+    my $cfg = new Config::General(%{$C->{p}});
+  };
+  ok ($@, "check parameter failure handling $C->{t}");
 }
-else {
-  print "25 not ok\n";
-  print STDERR "25 not ok\n";
-}
-pause;
 
 
 
-
-
-# all subs here
-
-sub p {
-  my($cfg, $t) = @_;
-  open T, "<$cfg";
-  my @file = <T>;
-  close T;
-  @file = map { chomp($_); $_} @file;
-  my $fst = $file[0];
-  my $conf = new Config::General($cfg);
-  my %hash = $conf->getall;
-  print "ok\n";
-  print STDERR " ... ok $fst\n";
-}
-
-sub comp {
-  my($a, $b) = @_;
-  my %keys = map { $_ => 1 } keys %$a, keys %$b;
-  foreach my $key (keys %keys) {
-    return 0 unless exists $a->{$key} and exists $b->{$key};
-    if(ref($a->{$key}) eq "HASH") {
-       return 0 unless &comp($a->{$key},$b->{$key});
-       next;
+### 32
+# check Flagbits
+my $cfg28 = new Config::General(
+  -String => "Mode = CLEAR | UNSECURE",
+  -FlagBits => {
+    Mode => {
+      CLEAR    => 1,
+      STRONG   => 1,
+      UNSECURE => "32bit"
     }
-    elsif(ref($a->{$key}) eq "ARRAY") {
-       # ignore arrays for simplicity
-       next;
-    }
-    return 0 if($a->{$key} ne $b->{$key});
+ } );
+my %cfg28 = $cfg28->getall();
+is_deeply(\%cfg28,
+{
+ 'Mode' => {
+ 'STRONG' => undef,
+ 'UNSECURE' => '32bit',
+ 'CLEAR' => 1
+}}, "Checking -Flagbits resolving");
+
+
+
+### 33
+# checking functional interface
+eval {
+  my %conf = Config::General::ParseConfig(-ConfigFile => "t/test.rc");
+  Config::General::SaveConfig("t/test.rc.out", \%conf);
+  my %next = Config::General::ParseConfig(-ConfigFile => "t/test.rc.out");
+  my @a = sort keys %conf;
+  my @b = sort keys %next;
+  if (@a != @b) {
+    die "Re-parsed result differs from original";
   }
-  return 1;
-}
+};
+ok(! $@, "Testing functional interface $@");
 
-sub pause {
-  # we are pausing between tests
-  # so the output gets not confused
-  # by stderr/stdout "collisions"
-  select undef, undef, undef, 0.3;
-}
+
+
+### 34
+# testing -AutoTrue
+my $cfg34 = new Config::General(-AutoTrue => 1, -ConfigFile => "t/cfg.34");
+my %cfg34 = $cfg34->getall();
+my %expect34 = (
+		'a' => {
+			'var6' => 0,
+			'var3' => 1,
+			'var1' => 1,
+			'var4' => 0,
+			'var2' => 1,
+			'var5' => 0
+		       },
+		'b' => {
+			'var6' => 0,
+			'var3' => 1,
+			'var1' => 1,
+			'var4' => 0,
+			'var2' => 1,
+			'var5' => 0
+		       }
+	       );
+is_deeply(\%cfg34, \%expect34, "Using -AutoTrue");
+
+
+
+### 35
+# testing -SplitPolicy
+my %conf35 = Config::General::ParseConfig(
+  -String =>
+   qq(var1 :: alpha
+      var2 :: beta
+      var3 =  gamma  # use wrong delimiter by purpose),
+  -SplitPolicy => 'custom',
+  -SplitDelimiter => '\s*::\s*'
+);
+my %expect35 = (
+		'var3 =  gamma' => '',
+		'var1' => 'alpha',
+		'var2' => 'beta'
+	      );
+is_deeply(\%conf35, \%expect35, "Using -SplitPolicy and custom -SplitDelimiter");

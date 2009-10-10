@@ -6,12 +6,12 @@ pr=$me/blubber
   uid  = 501
 </vars>
 
+base = /opt
 <etc>
-  dir = $base/conf   # $base should not be interpolated
-  base = /usr/local # set $base to a new value in this scope
+  base = /usr        # set $base to a new value in this scope
   log  = ${base}/log/logfile  # use braces
   <users>
-    home = $base/home/max # $base should be interpolated
+    home = $base/home/max # $base should be /usr, not /opt !
   </users>
 </etc>
 

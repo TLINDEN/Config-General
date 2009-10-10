@@ -5,17 +5,22 @@
 #          config values from a given file and
 #          return it as hash structure
 #
-# Copyright (c) 2000-2006 Thomas Linden <tom@daemon.de>.
+# Copyright (c) 2000-2007 Thomas Linden <tlinden |AT| cpan.org>.
 # All Rights Reserved. Std. disclaimer applies.
 # Artificial License, same as perl itself. Have fun.
 #
 # namespace
 package Config::General;
 
+use strict;
+use warnings;
+use English '-no_match_vars';
+
+use IO::File;
 use FileHandle;
 use File::Spec::Functions qw(splitpath file_name_is_absolute catfile catpath);
 use File::Glob qw/:glob/;
-use strict;
+
 
 # on debian with perl > 5.8.4 croak() doesn't work anymore without this.
 # There is some require statement which dies 'cause it can't find Carp::Heavy,
@@ -27,11 +32,11 @@ use Carp::Heavy;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = "2.31";
+$Config::General::VERSION = 2.32;
 
-use vars  qw(@ISA @EXPORT);
-@ISA    = qw(Exporter);
-@EXPORT = qw(ParseConfig SaveConfig SaveConfigString);
+use vars  qw(@ISA @EXPORT_OK);
+use base qw(Exporter);
+@EXPORT_OK = qw(ParseConfig SaveConfig SaveConfigString);
 
 sub new {
   #
@@ -89,18 +94,18 @@ sub new {
 
 	      StrictVars            => 1,       # be strict on undefined variables in Interpolate mode
 
-	      Tie                   => "",      # could be set to a perl module for tie'ing new hashes
+	      Tie                   => q(),      # could be set to a perl module for tie'ing new hashes
 
 	      parsed                => 0,       # internal state stuff for variable interpolation
-	      upperkey              => "",
+	      upperkey              => q(),
 	      upperkeys             => [],
-	      lastkey               => "",
-	      prevkey               => " ",
+	      lastkey               => q(),
+	      prevkey               => q( ),
 	      files                 => {},      # which files we have read, if any
 	     };
 
   # create the class instance
-  bless($self,$class);
+  bless $self, $class;
 
 
   if ($#param >= 1) {
@@ -111,12 +116,20 @@ sub new {
     $self->{Params} = \%conf;
 
     # be backwards compatible
-    $self->{ConfigFile} = delete $conf{-file} if(exists $conf{-file});
-    $self->{ConfigHash} = delete $conf{-hash} if(exists $conf{-hash});
+    if (exists $conf{-file}) {
+      $self->{ConfigFile} = delete $conf{-file};
+    }
+    if (exists $conf{-hash}) {
+      $self->{ConfigHash} = delete $conf{-hash};
+    }
 
     # store input, file, handle, or array
-    $self->{ConfigFile} = delete $conf{-ConfigFile} if(exists $conf{-ConfigFile});
-    $self->{ConfigHash} = delete $conf{-ConfigHash} if(exists $conf{-ConfigHash});
+    if (exists $conf{-ConfigFile}) {
+      $self->{ConfigFile} = delete $conf{-ConfigFile};
+    }
+    if (exists $conf{-ConfigHash}) {
+      $self->{ConfigHash} = delete $conf{-ConfigHash};
+    }
 
     # store search path for relative configs, if any
     if (exists $conf{-ConfigPath}) {
@@ -126,10 +139,15 @@ sub new {
 
     # handle options which contains values we are needing (strings, hashrefs or the like)
     if (exists $conf{-String} ) {
-      if ($conf{-String}) {
-	$self->{StringContent} = $conf{-String};
+      if (ref(\$conf{-String}) eq 'SCALAR') {
+	if ( $conf{-String}) {
+	  $self->{StringContent} = $conf{-String};
+	}
+	delete $conf{-String};
       }
-      delete $conf{-String};
+      else {
+	croak "Parameter -String must be a SCALAR!\n";
+      }
     }
 
     if (exists $conf{-Tie}) {
@@ -140,7 +158,7 @@ sub new {
     }
 
     if (exists $conf{-FlagBits}) {
-      if ($conf{-FlagBits} && ref($conf{-FlagBits}) eq "HASH") {
+      if ($conf{-FlagBits} && ref($conf{-FlagBits}) eq 'HASH') {
 	$self->{FlagBits} = 1;
 	$self->{FlagBitsFlags} = $conf{-FlagBits};
       }
@@ -148,11 +166,11 @@ sub new {
     }
 
     if (exists $conf{-DefaultConfig}) {
-      if ($conf{-DefaultConfig} && ref($conf{-DefaultConfig}) eq "HASH") {
+      if ($conf{-DefaultConfig} && ref($conf{-DefaultConfig}) eq 'HASH') {
 	$self->{DefaultConfig} = $conf{-DefaultConfig};
       }
-      elsif ($conf{-DefaultConfig} && ref($conf{-DefaultConfig}) eq "") {
-	$self->_read($conf{-DefaultConfig}, "SCALAR");
+      elsif ($conf{-DefaultConfig} && ref($conf{-DefaultConfig}) eq q()) {
+	$self->_read($conf{-DefaultConfig}, 'SCALAR');
 	$self->{DefaultConfig} = $self->_parse($self->_hashref(), $self->{content});
 	$self->{content} = ();
       }
@@ -189,7 +207,7 @@ sub new {
   elsif ($#param == 0) {
     # use of the old style
     $self->{ConfigFile} = $param[0];
-    if (ref($self->{ConfigFile}) eq "HASH") {
+    if (ref($self->{ConfigFile}) eq 'HASH') {
       $self->{ConfigHash} = delete $self->{ConfigFile};
     }
   }
@@ -203,11 +221,15 @@ sub new {
   if ($self->{SplitPolicy} ne 'guess') {
     if ($self->{SplitPolicy} eq 'whitespace') {
       $self->{SplitDelimiter} = '\s+';
-      $self->{StoreDelimiter} = "   " if(!$self->{StoreDelimiter});
+      if (!$self->{StoreDelimiter}) {
+	$self->{StoreDelimiter} = q(   );
+      }
     }
     elsif ($self->{SplitPolicy} eq 'equalsign') {
       $self->{SplitDelimiter} = '\s*=\s*';
-      $self->{StoreDelimiter} = " = " if(!$self->{StoreDelimiter});
+      if (!$self->{StoreDelimiter}) {
+	$self->{StoreDelimiter} = ' = ';
+      }
     }
     elsif ($self->{SplitPolicy} eq 'custom') {
       if (! $self->{SplitDelimiter} ) {
@@ -219,7 +241,9 @@ sub new {
     }
   }
   else {
-    $self->{StoreDelimiter} = "   " if(!$self->{StoreDelimiter});
+    if (!$self->{StoreDelimiter}) {
+      $self->{StoreDelimiter} = q(   );
+    }
   }
 
   if ($self->{InterPolateVars} || $self->{InterPolateEnv}) {
@@ -229,12 +253,12 @@ sub new {
     # we are blessing here again, to get into the ::InterPolated namespace
     # for inheriting the methods available overthere, which we doesn't have.
     #
-    bless($self, "Config::General::Interpolated");
+    bless $self, 'Config::General::Interpolated';
     eval {
       require Config::General::Interpolated;
     };
-    if ($@) {
-      croak $@;
+    if ($EVAL_ERROR) {
+      croak $EVAL_ERROR;
     }
     # pre-compile the variable regexp
     $self->{regex} = $self->_set_regex();
@@ -247,11 +271,11 @@ sub new {
     }
     if (exists $self->{StringContent}) {
       # consider the supplied string as config file
-      $self->_read($self->{StringContent}, "SCALAR");
+      $self->_read($self->{StringContent}, 'SCALAR');
       $self->{config} = $self->_parse($self->{DefaultConfig}, $self->{content});
     }
     elsif (exists $self->{ConfigHash}) {
-      if (ref($self->{ConfigHash}) eq "HASH") {
+      if (ref($self->{ConfigHash}) eq 'HASH') {
 	# initialize with given hash
 	$self->{config} = $self->{ConfigHash};
 	$self->{parsed} = 1;
@@ -260,7 +284,7 @@ sub new {
 	croak "Parameter -ConfigHash must be a hash reference!\n";
       }
     }
-    elsif (ref($self->{ConfigFile}) eq "GLOB" || ref($self->{ConfigFile}) eq "FileHandle") {
+    elsif (ref($self->{ConfigFile}) eq 'GLOB' || ref($self->{ConfigFile}) eq 'FileHandle') {
       # use the file the glob points to
       $self->_read($self->{ConfigFile});
       $self->{config} = $self->_parse($self->{DefaultConfig}, $self->{content});
@@ -273,8 +297,10 @@ sub new {
 	  # look if is is an absolute path and save the basename if it is absolute
 	  my ($volume, $path, undef) = splitpath($self->{ConfigFile});
 	  $path =~ s#/$##; # remove eventually existing trailing slash
-	  $self->{ConfigPath} = [] unless $self->{ConfigPath};
-	  unshift @{$self->{ConfigPath}}, catpath($volume, $path, '');
+	  if (! $self->{ConfigPath}) {
+	    $self->{ConfigPath} = [];
+	  }
+	  unshift @{$self->{ConfigPath}}, catpath($volume, $path, q());
 	}
 	$self->_open($self->{configfile});
 	# now, we parse immdediately, getall simply returns the whole hash
@@ -297,12 +323,12 @@ sub new {
     # we are blessing here again, to get into the ::Extended namespace
     # for inheriting the methods available overthere, which we doesn't have.
     #
-    bless($self, "Config::General::Extended");
+    bless $self, 'Config::General::Extended';
     eval {
       require Config::General::Extended;
     };
-    if ($@) {
-      croak $@;
+    if ($EVAL_ERROR) {
+      croak $EVAL_ERROR;
     }
   }
 
@@ -334,16 +360,18 @@ sub _open {
   # open the config file, or expand a directory or glob
   #
   my($this, $configfile) = @_;
-  my $fh = new FileHandle;
+  my $fh;
 
   if ($this->{IncludeGlob} and $configfile =~ /[*?\[\{\\]/) {
     # Something like: *.conf (or maybe dir/*.conf) was included; expand it and
     # pass each expansion through this method again.
-    my @include = grep -f, bsd_glob($configfile, GLOB_BRACE | GLOB_QUOTE);
+    my @include = grep { -f $_ } bsd_glob($configfile, GLOB_BRACE | GLOB_QUOTE);
     if (@include == 1) {
       $configfile = $include[0];
     }
-    else { # Multiple results or no expansion results (which is fine, include foo/* shouldn't fail if there isn't anything matching)
+    else {
+      # Multiple results or no expansion results (which is fine,
+      # include foo/* shouldn't fail if there isn't anything matching)
       local $this->{IncludeGlob};
       for (@include) {
 	$this->_open($_);
@@ -354,7 +382,7 @@ sub _open {
 
   if (!-e $configfile) {
     my $found;
-    if (defined($this->{ConfigPath})) {
+    if (defined $this->{ConfigPath}) {
       # try to find the file within ConfigPath
       foreach my $dir (@{$this->{ConfigPath}}) {
 	if( -e catfile($dir, $configfile) ) {
@@ -365,27 +393,27 @@ sub _open {
       }
     }
     if (!$found) {
-      my $path_message = defined $this->{ConfigPath} ? ' within ConfigPath: ' . join('.', @{$this->{ConfigPath}}) : '';
+      my $path_message = defined $this->{ConfigPath} ? q( within ConfigPath: ) . join(q(.), @{$this->{ConfigPath}}) : q();
       croak qq{The file "$configfile" does not exist$path_message!};
     }
   }
 
-  local ($/) = $/;
-  unless ($/) {
-    carp("\$/ (INPUT_RECORD_SEPARATOR) is undefined.  Guessing you want a line feed character");
-    $/ = "\n";
+  local ($RS) = $RS;
+  if (! $RS) {
+    carp(q(\$RS (INPUT_RECORD_SEPARATOR) is undefined.  Guessing you want a line feed character));
+    $RS = "\n";
   }
 
   if (-d $configfile and $this->{IncludeDirectories}) {
     # A directory was included; include all the files inside that directory in ASCII order
     local *INCLUDEDIR;
     opendir INCLUDEDIR, $configfile or croak "Could not open directory $configfile!($!)\n";
-    my @files = sort grep -f "$configfile/$_", readdir INCLUDEDIR;
+    my @files = sort grep { -f "$configfile/$_" } "$configfile/$_", readdir INCLUDEDIR;
     closedir INCLUDEDIR;
     local $this->{CurrentConfigFilePath} = $configfile;
     for (@files) {
-      unless ($this->{files}->{"$configfile/$_"}) {
-	open $fh, "<$configfile/$_" or croak "Could not open $configfile/$_!($!)\n";
+      if (! $this->{files}->{"$configfile/$_"}) {
+	$fh = IO::File->new( "$configfile/$_", 'r') or croak "Could not open $configfile/$_!($!)\n";
 	$this->{files}->{"$configfile/$_"} = 1;
 	$this->_read($fh);
       }
@@ -398,16 +426,17 @@ sub _open {
       return;
     }
     else {
-      open $fh, "<$configfile" or croak "Could not open $configfile!($!)\n";
+      $fh = IO::File->new( "$configfile", 'r') or croak "Could not open $configfile!($!)\n";
 
       $this->{files}->{$configfile}    = 1;
 
       my ($volume, $path, undef)           = splitpath($configfile);
-      local $this->{CurrentConfigFilePath} = catpath($volume, $path, '');
+      local $this->{CurrentConfigFilePath} = catpath($volume, $path, q());
 
       $this->_read($fh);
     }
   }
+  return;
 }
 
 
@@ -419,14 +448,14 @@ sub _read {
   #
   my($this, $fh, $flag) = @_;
   my(@stuff, @content, $c_comment, $longline, $hier, $hierend, @hierdoc);
-  local $_;
+  local $_ = q();
 
-  if ($flag && $flag eq "SCALAR") {
-    if (ref($fh) eq "ARRAY") {
+  if ($flag && $flag eq 'SCALAR') {
+    if (ref($fh) eq 'ARRAY') {
       @stuff = @{$fh};
     }
     else {
-      @stuff = split "\n", $fh;
+      @stuff = split /\n/, $fh;
     }
   }
   else {
@@ -435,8 +464,9 @@ sub _read {
 
   foreach (@stuff) {
     if ($this->{AutoLaunder}) {
-      m/^(.*)$/;
-      $_ = $1;
+      if (m/^(.*)$/) {
+	$_ = $1;
+      }
     }
 
     chomp;
@@ -472,7 +502,7 @@ sub _read {
       # inside here-doc, only look for $hierend marker
       if (/^(\s*)\Q$hierend\E\s*$/) {
 	my $indent = $1;                 # preserve indentation
-	$hier .= " " . chr(182);         # append a "¶" to the here-doc-name, so
+	$hier .= ' ' . chr 182;         # append a "¶" to the here-doc-name, so
 	                                 # _parse will also preserver indentation
 	if ($indent) {
 	  foreach (@hierdoc) {
@@ -506,7 +536,7 @@ sub _read {
 
 
     # look for multiline option, indicated by a trailing backslash
-    my $extra = $this->{BackslashEscape} ? '(?<!\\\\)' : '';
+    my $extra = $this->{BackslashEscape} ? '(?<!\\\\)' : q();
     if (/$extra\\$/) {
       chop;
       s/^\s*//;
@@ -581,11 +611,11 @@ sub _read {
     else {
       # look for include statement(s)
       my $incl_file;
-      my $path = "";
-      if ( $this->{IncludeRelative} and defined($this->{CurrentConfigFilePath})) {
+      my $path = '';
+      if ( $this->{IncludeRelative} and defined $this->{CurrentConfigFilePath}) {
       	$path = $this->{CurrentConfigFilePath};
       }
-      elsif (defined($this->{ConfigPath})) {
+      elsif (defined $this->{ConfigPath}) {
 	# fetch pathname of base config file, assuming the 1st one is the path of it
 	$path = $this->{ConfigPath}->[0];
       }
@@ -621,7 +651,7 @@ sub _parse {
   my($this, $config, $content) = @_;
   my(@newcontent, $block, $blockname, $chunk,$block_level);
   local $_;
-  my $indichar = chr(182);  # ¶, inserted by _open, our here-doc indicator
+  my $indichar = chr 182;  # ¶, inserted by _open, our here-doc indicator
 
   foreach (@{$content}) {                                  # loop over content stack
     chomp;
@@ -671,11 +701,13 @@ sub _parse {
 	  # interpolate block(name), add "<" and ">" to the key, because
 	  # it is sure that such keys does not exist otherwise.
 	  $block     = $this->_interpolate("<$block>", $block);
-	  if ($blockname) {
-	    $blockname = $this->_interpolate("<$blockname>", $blockname);
+	  if (defined $blockname) {
+	    $blockname = $this->_interpolate("<$blockname>", "$blockname");
 	  }
 	}
-	$block = lc($block) if $this->{LowerCaseNames};    # only for blocks lc(), if configured via new()
+	if ($this->{LowerCaseNames}) {
+	  $block = lc $block;    # only for blocks lc(), if configured via new()
+	}
 	$this->{level} += 1;
 	undef @newcontent;
 	next;
@@ -684,7 +716,9 @@ sub _parse {
 	croak "EndBlock \"<\/$1>\" has no StartBlock statement (level: $this->{level}, chunk $chunk)!\n";
       }
       else {                                               # insert key/value pair into actual node
-	$option = lc($option) if $this->{LowerCaseNames};
+	if ($this->{LowerCaseNames}) {
+	  $option = lc $option;
+	}
 	if (exists $config->{$option}) {
 	  if ($this->{MergeDuplicateOptions}) {
 	    $config->{$option} = $this->_parse_value($option, $value);
@@ -696,7 +730,7 @@ sub _parse {
 	    }
 	    else {
 	      # yes, duplicates allowed
-	      if (ref($config->{$option}) ne "ARRAY") {      # convert scalar to array
+	      if (ref($config->{$option}) ne 'ARRAY') {      # convert scalar to array
 		my $savevalue = $config->{$option};
 		delete $config->{$option};
 		push @{$config->{$option}}, $savevalue;
@@ -705,7 +739,7 @@ sub _parse {
 		# check if arrays are supported by the underlying hash
 		my $i = scalar @{$config->{$option}};
 	      };
-	      if ($@) {
+	      if ($EVAL_ERROR) {
 		$config->{$option} = $this->_parse_value($option, $value);
 	      }
 	      else {
@@ -731,11 +765,12 @@ sub _parse {
 	push @newcontent, $_;       # push onto new content stack
       }
       else {                        # calling myself recursively, end of $block reached, $block_level is 0
-	if ($blockname) {           # a named block, make it a hashref inside a hash within the current node
+	if (defined $blockname) {           # a named block, make it a hashref inside a hash within the current node
 	  $this->_savelast($blockname);
 
-	  $config->{$block} = $this->_hashref() # Make sure that the hash is not created implicitely
-	    unless exists $config->{$block};
+	  if (! exists $config->{$block}) {
+	    $config->{$block} = $this->_hashref(); # Make sure that the hash is not created implicitely
+	  }
 
 	  if (exists $config->{$block}->{$blockname}) {    # the named block already exists, make it an array
 	    if ($this->{MergeDuplicateBlocks}) {
@@ -751,7 +786,7 @@ sub _parse {
 		my $savevalue = $config->{$block}->{$blockname};
 		delete $config->{$block}->{$blockname};
 		my @ar;
-		if (ref $savevalue eq "ARRAY") {
+		if (ref $savevalue eq 'ARRAY') {
 		  push @ar, @{$savevalue};                   # preserve array if any
 		}
 		else {
@@ -762,7 +797,7 @@ sub _parse {
 	      }
 	    }
 	  }
-	  elsif (ref($config->{$block}) eq "ARRAY") {
+	  elsif (ref($config->{$block}) eq 'ARRAY') {
 	    croak "Cannot add named block <$block $blockname> to hash! Block <$block> occurs more than once.\n"
 	         ."Turn on -MergeDuplicateBlocks or make sure <$block> occurs only once in the config.\n";
 	  }
@@ -827,15 +862,17 @@ sub _parse {
 
 sub _savelast {
   my($this, $key) = @_;
-  push(@{$this->{upperkeys}}, $this->{lastkey});
+  push @{$this->{upperkeys}}, $this->{lastkey};
   $this->{lastkey}  = $this->{prevkey};
   $this->{prevkey}  = $key;
+  return;
 }
 
 sub _backlast {
   my($this, $key) = @_;
   $this->{prevkey} = $this->{lastkey};
-  $this->{lastkey} = pop(@{$this->{upperkeys}});
+  $this->{lastkey} = pop @{$this->{upperkeys}};
+  return;
 }
 
 sub _parse_value {
@@ -847,7 +884,9 @@ sub _parse_value {
   my($this, $option, $value) =@_;
 
   # avoid "Use of uninitialized value"
-  $value = '' unless defined $value;
+  if (! defined $value) {
+    $value = q();
+  }
 
   if ($this->{InterPolateVars}) {
     $value = $this->_interpolate($option, $value);
@@ -892,7 +931,7 @@ sub NoMultiOptions {
   # Since we do parsing from within new(), we must
   # call it again if one turns NoMultiOptions on!
   #
-  croak "The NoMultiOptions() method is deprecated. Set 'AllowMultiOptions' to 'no' instead!";
+  croak q(The NoMultiOptions() method is deprecated. Set 'AllowMultiOptions' to 'no' instead!);
 }
 
 
@@ -912,8 +951,9 @@ sub save {
     $this->save_file($one, \%h);
   }
   else {
-    croak "The save() method is deprecated. Use the new save_file() method instead!";
+    croak q(The save() method is deprecated. Use the new save_file() method instead!);
   }
+  return;
 }
 
 
@@ -922,14 +962,14 @@ sub save_file {
   # save the config back to disk
   #
   my($this, $file, $config) = @_;
-  my $fh = new FileHandle;
+  my $fh;
   my $config_string;
 
   if (!$file) {
     croak "Filename is required!";
   }
   else {
-    open $fh, ">$file" or croak "Could not open $file!($!)\n";
+    $fh = IO::File->new( "$file", 'w') or croak "Could not open $file!($!)\n";
 
     if (!$config) {
       if (exists $this->{config}) {
@@ -944,15 +984,16 @@ sub save_file {
     }
 
     if ($config_string) {
-      print $fh $config_string;
+      print {$fh} $config_string;
     }
     else {
       # empty config for whatever reason, I don't care
-      print $fh "";
+      print {$fh} q();
     }
 
     close $fh;
   }
+  return;
 }
 
 
@@ -963,7 +1004,7 @@ sub save_string {
   #
   my($this, $config) = @_;
 
-  if (!$config || ref($config) ne "HASH") {
+  if (!$config || ref($config) ne 'HASH') {
     if (exists $this->{config}) {
       return $this->_store(0, %{$this->{config}});
     }
@@ -974,6 +1015,7 @@ sub save_string {
   else {
     return $this->_store(0, %{$config});
   }
+  return;
 }
 
 
@@ -984,14 +1026,14 @@ sub _store {
   #
   my($this, $level, %config) = @_;
   local $_;
-  my $indent = "    " x $level;
+  my $indent = q(    ) x $level;
 
-  my $config_string = "";
+  my $config_string = q();
 
   foreach my $entry (sort keys %config) {
-    if (ref($config{$entry}) eq "ARRAY") {
+    if (ref($config{$entry}) eq 'ARRAY') {
       foreach my $line (@{$config{$entry}}) {
-        if (ref($line) eq "HASH") {
+        if (ref($line) eq 'HASH') {
 	  $config_string .= $this->_write_hash($level, $entry, $line);
         }
         else {
@@ -999,7 +1041,7 @@ sub _store {
         }
       }
     }
-    elsif (ref($config{$entry}) eq "HASH") {
+    elsif (ref($config{$entry}) eq 'HASH') {
       $config_string .= $this->_write_hash($level, $entry, $config{$entry});
     }
     else {
@@ -1018,18 +1060,18 @@ sub _write_scalar {
   #
   my($this, $level, $entry, $line) = @_;
 
-  my $indent = "    " x $level;
+  my $indent = q(    ) x $level;
 
   my $config_string;
 
   if ($line =~ /\n/ || $line =~ /\\$/) {
     # it is a here doc
     my $delimiter;
-    my $tmplimiter = "EOF";
+    my $tmplimiter = 'EOF';
     while (!$delimiter) {
       # create a unique here-doc identifier
       if ($line =~ /$tmplimiter/s) {
-	$tmplimiter .= "%";
+	$tmplimiter .= q(%);
       }
       else {
 	$delimiter = $tmplimiter;
@@ -1058,17 +1100,17 @@ sub _write_hash {
   #
   my($this, $level, $entry, $line) = @_;
 
-  my $indent = "    " x $level;
+  my $indent = q(    ) x $level;
   my $config_string;
 
   if ($entry =~ /\s/) {
     # quote the entry if it contains whitespaces
-    $entry = '"' . $entry . '"';
+    $entry = q(") . $entry . q(");
   }
 
-  $config_string .= $indent . "<" . $entry . ">\n";
+  $config_string .= $indent . q(<) . $entry . ">\n";
   $config_string .= $this->_store($level + 1, %{$line});
-  $config_string .= $indent . "</" . $entry . ">\n";
+  $config_string .= $indent . q(</) . $entry . ">\n";
 
   return $config_string
 }
@@ -1080,13 +1122,13 @@ sub _hashref {
   #
   my($this) = @_;
   my ($package, $filename, $line, $subroutine, $hasargs,
-      $wantarray, $evaltext, $is_require, $hints, $bitmask) = caller(0);
+      $wantarray, $evaltext, $is_require, $hints, $bitmask) = caller 0;
   if ($this->{Tie}) {
     eval {
-      eval "require $this->{Tie}";
+      eval {require $this->{Tie}};
     };
-    if ($@) {
-      croak "Could not create a tied hash of type: " . $this->{Tie} . ": " . $@;
+    if ($EVAL_ERROR) {
+      croak q(Could not create a tied hash of type: ) . $this->{Tie} . q(: ) . $EVAL_ERROR;
     }
     my %hash;
     tie %hash, $this->{Tie};
@@ -1116,16 +1158,17 @@ sub SaveConfig {
   my ($file, $hash) = @_;
 
   if (!$file || !$hash) {
-    croak "SaveConfig(): filename and hash argument required.";
+    croak q{SaveConfig(): filename and hash argument required.};
   }
   else {
-    if (ref($hash) ne "HASH") {
-      croak "The second parameter must be a reference to a hash!";
+    if (ref($hash) ne 'HASH') {
+      croak q(The second parameter must be a reference to a hash!);
     }
     else {
       (new Config::General(-ConfigHash => $hash))->save_file($file);
     }
   }
+  return;
 }
 
 sub SaveConfigString {
@@ -1136,22 +1179,24 @@ sub SaveConfigString {
   my ($hash) = @_;
 
   if (!$hash) {
-    croak "SaveConfigString(): Hash argument required.";
+    croak q{SaveConfigString(): Hash argument required.};
   }
   else {
-    if (ref($hash) ne "HASH") {
-      croak "The parameter must be a reference to a hash!";
+    if (ref($hash) ne 'HASH') {
+      croak q(The parameter must be a reference to a hash!);
     }
     else {
       return (new Config::General(-ConfigHash => $hash))->save_string();
     }
   }
+  return;
 }
 
 
 
 # keep this one
 1;
+__END__
 
 
 
@@ -1188,7 +1233,7 @@ In addition to the capabilities of an apache config file it supports some enhanc
 C-style comments or multiline options.
 
 
-=head1 METHODS
+=head1 SUBROUTINES/METHODS
 
 =over
 
@@ -2117,6 +2162,10 @@ which is supplied with the Config::General distribution.
 Config::General exports some functions too, which makes it somewhat
 easier to use it, if you like this.
 
+How to import the functions:
+
+ use Config::General qw(ParseConfig SaveConfig SaveConfigString);
+
 =over
 
 =item B<ParseConfig()>
@@ -2158,6 +2207,9 @@ Example:
 
 =back
 
+=head1 CONFIGURATION AND ENVIRONMENT
+
+No environment variables will be used.
 
 =head1 SEE ALSO
 
@@ -2171,26 +2223,38 @@ I recommend you to read the following documentations, which are supplied with pe
  Config::General::Extended      Object oriented interface to parsed configs
  Config::General::Interpolated  Allows to use variables inside config files
 
-=head1 COPYRIGHT
+=head1 LICENSE AND COPYRIGHT
 
-Copyright (c) 2000-2006 Thomas Linden
+Copyright (c) 2000-2007 Thomas Linden
 
 This library is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
 
+=head1 BUGS AND LIMITATIONS
 
-=head1 BUGS
+See rt.cpan.org for current bugs, if any.
 
-none known yet.
+=head1 INCOMPATIBILITIES
+
+None known.
+
+=head1 DIAGNOSTICS
+
+To debug Config::General use the perl debugger, see L<perldebug>.
+
+=head1 DEPENDENCIES
+
+Config::General depends on the modules L<FileHandle>,
+L<File::Spec::Functions>, L<File::Glob>, which all are
+shipped with perl.
 
 =head1 AUTHOR
 
-Thomas Linden <tom@daemon.de>
-
+Thomas Linden <tlinden |AT| cpan.org>
 
 =head1 VERSION
 
-2.31
+2.32
 
 =cut
 
