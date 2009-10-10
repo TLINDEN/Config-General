@@ -10,6 +10,10 @@
 # All Rights Reserved. Std. disclaimer applies.
 # Artificial License, same as perl itself. Have fun.
 #
+# Changes from 1.18:   - you can escape "#" characters using a backslash: "\#"
+#                        which will now no more treated as a comment.
+#                      - comments inside here-documents will now remain in the
+#                        here-doc value.
 
 # namespace
 package Config::General;
@@ -18,7 +22,7 @@ use FileHandle;
 use strict;
 use Carp;
 
-$Config::General::VERSION = "1.18";
+$Config::General::VERSION = "1.19";
 
 sub new {
   #
@@ -95,9 +99,12 @@ sub _open {
     open $fh, "<$configfile" or croak "Could not open $configfile!($!)\n";
     while (<$fh>) {
       chomp;
-      next if (/^\s*$/ || /^\s*#/);               # ignore whitespace(s) and lines beginning with #
-      if (/^([^#]+?)#/) {
-	$_ = $1;                                  # remove trailing comment
+
+      # patch by "Manuel Valente" <manuel@ripe.net>:
+      if (!$hierend) {
+	s/(?<!\\)#.+$//;                          # Remove comments
+	next if /^\s*$/;                          # Skip empty lines
+	s/\\#/#/g;                                # remove the \ char in front of masked "#"
       }
       if (/^\s*(.+?)(\s*=\s*|\s+)<<(.+?)$/) {     # we are @ the beginning of a here-doc
 	$hier = $1;                               # $hier is the actual here-doc
@@ -108,7 +115,7 @@ sub _open {
 	$hier .= " " . chr(182);                  # append a "¶" to the here-doc-name, so _parse will also preserver indentation
 	if ($indent) {
 	  foreach (@hierdoc) {
-	    $_ =~ s/^$indent//;                   # i.e. the end was: "    EOF" then we remove "    " from every here-doc line
+	    s/^$indent//;                         # i.e. the end was: "    EOF" then we remove "    " from every here-doc line
 	    $hier .= $_ . "\n";                   # and store it in $hier
 	  }
 	}
@@ -136,12 +143,12 @@ sub _open {
       }
       elsif (/\\$/) {                             # a multiline option, indicated by a trailing backslash
 	chop;
-	$_ =~ s/^\s*//;
+	s/^\s*//;
 	$longline .= $_ if(!$c_comment);          # store in $longline
       }
       else {                                      # any "normal" config lines
 	if ($longline) {                          # previous stuff was a longline and this is the last line of the longline
-	  $_ =~ s/^\s*//;
+	  s/^\s*//;
 	  $longline .= $_ if(!$c_comment);
 	  push @{$this->{content}}, $longline;    # push it onto the content stack
 	  undef $longline;
@@ -185,8 +192,8 @@ sub _parse {
 
     my ($option,$value) = split /\s*=\s*|\s+/, $_, 2;      # option/value assignment, = is optional
     my $indichar = chr(182);                               # ¶, inserted by _open, our here-doc indicator
-    $value =~ s/^$indichar// if($value);                              # a here-doc begin, remove indicator
-    $value =~ s/^"// if($value);                                      # remove leading and trailing "
+    $value =~ s/^$indichar// if($value);                   # a here-doc begin, remove indicator
+    $value =~ s/^"// if($value);                           # remove leading and trailing "
     $value =~ s/"$// if($value);
     if (!$block) {                                         # not inside a block @ the moment
       if (/^<([^\/]+?.*?)>$/) {                            # look if it is a block
@@ -296,6 +303,7 @@ sub _store {
   foreach my $entry (sort keys %config) {
     if (ref($config{$entry}) eq "ARRAY") {
       foreach my $line (@{$config{$entry}}) {
+	$line =~ s/#/\\#/g;
 	print $fh $indent . $entry . "   " . $line . "\n";
       }
     }
@@ -316,6 +324,7 @@ sub _store {
 	print $fh $indent . "EOF\n";
       }
       else {
+	$config{$entry} =~ s/#/\\#/g;
 	print $fh $indent . $entry . "   " . $config{$entry}  . "\n";
       }
     }
@@ -690,13 +699,23 @@ Example:
  */
 
 In this example the second options of user and db will be ignored. Please beware of the fact,
-the if the Module finds a B</*> string which is the start of a comment block, but no matching
+if the Module finds a B</*> string which is the start of a comment block, but no matching
 end block, it will ignore the whole rest of the config file!
+
+B<NOTE:> If you require the B<#> character (number sign) to remain in the option value, then
+you can use a backlsash in front of it, to escape it. Example:
+
+ bgcolor = \#ffffcc
+
+In this example the value of $config{bgcolor} will be "#ffffcc", Config::General will not treat
+the number sign as the begin of a comment because of the leading backslash.
+
+Inside here-documents escaping of number signs is NOT required! 
 
 
 =head1 COPYRIGHT
 
-Copyright (c) 2000 Thomas Linden
+Copyright (c) 2000-2001 Thomas Linden
 
 This library is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
@@ -714,7 +733,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-1.18
+1.19
 
 =cut
 

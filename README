@@ -44,22 +44,7 @@ INSTALLATION
 
 
 COPYRIGHT
-       Copyright (c) 2000 Thomas Linden
-
-       This library is free software; you can redistribute it
-       and/or modify it under the same terms as Perl itself.
-
-
-BUGS
-       none known yet.
-
-
-AUTHOR
-       Thomas Linden <tom@consol.de>
-
-
-COPYRIGHT
-       Copyright (c) 2000 Thomas Linden
+       Copyright (c) 2000-2001 Thomas Linden
 
        This library is free software; you can redistribute it
        and/or modify it under the same terms as Perl itself.
@@ -74,4 +59,4 @@ AUTHOR
 
 
 VERSION
-	1.17
+	1.19
