@@ -1,5 +1,5 @@
 package Config::General::Interpolated;
-$Config::General::Interpolated::VERSION = "1.3";
+$Config::General::Interpolated::VERSION = "1.4";
 
 use strict;
 use Carp;
@@ -70,9 +70,15 @@ sub _vars {
       }
       else {
 	$value =~ s{$this->{regex}}{
-	  my $v = $varstack{$3} || $stack->{$3};
-	  $v = '' if ref($v);
-	  $1 . $v;
+	  my $con = $1;
+	  my $var = $3;
+	  my $v = $varstack{$var} || $stack->{$var};
+	  if (defined $v) {
+	    $con . $v;
+	  }
+	  else {
+	    croak "Use of uninitialized variable \$" . $var . "\n";
+	  }
 	}egx;
       }
 
@@ -210,7 +216,7 @@ See L<http://www.perl.com/perl/misc/Artistic.html>
 
 =head1 VERSION
 
-1.3
+1.4
 
 =cut
 

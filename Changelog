@@ -1,3 +1,8 @@
+ 2.04    - added RFE from rt.cpan.org (ID: 1218). the ::Interpolate
+	   module populates now uses of uninitialized variables in
+	   config files itself instead of just letting perl die().
+	   The other suggestion of the RFE was declined.
+
  2.03    - fixed bug in the _parse() routine (better: design flaw).
            after the last patch for allowing whitespaces in
 	   option names, it had a problem with here-docs which
