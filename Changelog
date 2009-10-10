@@ -1,3 +1,18 @@
+ 2.01    - added -ConfigFile (in replace for -file) and
+           -ConfigHash (in replace for -hash) to get a consistent
+	   parameter naming scheme. The old names are still
+	   supported for backward compatibility, but no more
+	   documented.
+
+         - the parameter -BaseHash has been dropped because
+	   -DefaultConfig already has the capabilities of
+           defining a custom backing hash. The pod section for
+	   -DefaultConfig has been enhanced to reflect this.
+
+	 - README changed something. Removed the 'small' keyword,
+	   because the module isn't really small anymore :-)
+	   At least IMHO.
+
  2.00    - fixed a bug in the ::Extended::keys() method, which 
 	   caused a beloved "use of uninitialized ..." message.
 	   Reported by Danial Pearce <danial@infoxchange.net.au>.

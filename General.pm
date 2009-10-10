@@ -17,7 +17,7 @@ use strict;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = "2.00";
+$Config::General::VERSION = "2.01";
 
 use vars  qw(@ISA @EXPORT);
 @ISA    = qw(Exporter);
@@ -53,8 +53,6 @@ sub new {
 
 	      DefaultConfig         => {},
 
-	      BaseHash              => {},
-
 	      level                 => 1,
 
 	      InterPolateVars       => 0,
@@ -71,8 +69,10 @@ sub new {
   if ($#param >= 1) {
     # use of the new hash interface!
     my %conf = @param;
-    $configfile = delete $conf{-file} if(exists $conf{-file});
-    $configfile = delete $conf{-hash} if(exists $conf{-hash});
+    $configfile = delete $conf{-file} if(exists $conf{-file}); # be backwards compatible
+    $configfile = delete $conf{-ConfigFile} if(exists $conf{-ConfigFile});
+    $configfile = delete $conf{-hash} if(exists $conf{-hash}); # be backwards compatible
+    $configfile = delete $conf{-ConfigHash} if(exists $conf{-ConfigHash});
 
 
 
@@ -102,15 +102,6 @@ sub new {
       }
       delete $conf{-DefaultConfig};
       delete $conf{-BaseHash}; # ignore BaseHash if a default one was given
-    }
-
-    if (exists $conf{-BaseHash}) {
-      if ($conf{-BaseHash}) {
-	# we do not check for ref() output because the hash could
-	# be something we are not expecting, a tied hash for example
-	$self->{DefaultConfig} = $conf{-BaseHash};
-      }
-      delete $conf{-BaseHash};
     }
 
     # handle options which may either be true or false
@@ -853,19 +844,19 @@ the following keys set:
 
 =over
 
-=item B<-file>
+=item B<-ConfigFile>
 
 A filename or a filehandle, i.e.:
 
- -file => "rcfile" or -file => \$FileHandle
+ -ConfigFile => "rcfile" or -ConfigFile => \$FileHandle
 
 
 
-=item B<-hash>
+=item B<-ConfigHash>
 
 A hash reference, which will be used as the config, i.e.:
 
- -hash => \%somehash
+ -ConfigHash => \%somehash
 
 
 
@@ -1032,6 +1023,14 @@ This can be a hash reference or a simple scalar (string) of a config. This
 causes the module to preset the resulting config hash with the given values,
 which allows you to set default values for particular config options directly.
 
+This hash will be used as the 'backing hash' instead of a standard perl hash,
+which allows you to affect the way, variable storing will be done. You could, for
+example supply a tied hash, say Tie::DxHash, which preserves ordering of the
+keys in the config (which a standard perl hash won't do). Or, you could supply
+a hash tied to a DBM file to save the parsed variables to disk.
+
+There are many more things to do in tie-land, see L<tie> to get some interesting
+ideas.
 
 =item B<-InterPolateVars>
 
@@ -1042,19 +1041,6 @@ input. See L<Config::General::Interpolated> for more informations.
 
 If set to a true value, you can use object oriented (extended) methods to
 access the parsed config. See L<Config::General::Extended> for more informations.
-
-=item B<-BaseHash>
-
-You can supply a reference to a 'hash' which will be used to store the parsed
-contents of your config file instead of the default standard perl hash.
-
-This is a way to affect the way, variable storing will be done. You could, for
-example supply a tied hash, say Tie::DxHash, which preserves ordering of the
-keys in the config (which a standard perl hash won't do). Or, you could supply
-a hash tied to a DBM file to save the parsed variables to disk.
-
-There are many more things to do in tie-land, see L<tie> to get some interesting
-ideas.
 
 =back
 
@@ -1580,7 +1566,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-2.00
+2.01
 
 =cut
 

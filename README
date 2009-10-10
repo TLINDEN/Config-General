@@ -3,27 +3,30 @@ NAME
 
 SYNOPSIS
         use Config::General;
-        $conf = new Config::General("rcfile");
+        $conf = new Config::General(-ConfigFile => "myconfig.rc");
         my %config = $conf->getall;
 
 
 DESCRIPTION
-       This small module opens a config file and parses it's
-       contents for you. The new method requires one parameter
-       which needs to be a filename. The method getall returns a
-       hash which contains all options and it's associated values
-       of your config file.
+       This module opens a config file and parses it's contents
+       for you. After parsing the module returns a hash structure
+       which contains the representation of the config file.
 
        The format of config files supported by Config::General is
        inspired by the well known apache config format, in fact,
-       this module is 100% compatible to apache configs, but you
-       can also just use simple name/value pairs in your config
+       this module is 100% read-compatible to apache configs, but
+       you can also just use simple name/value pairs in your config
        files.
 
-       In addition to the capabilities of an apache config file
+       In addition to the capabilities of a apache config file
        it supports some enhancements such as here-documents, C-
-       style comments or multiline options.
+       style comments or multiline options. It is also possible to
+       save the config back to disk, which makes the module a
+       perfect backend for configuration interfaces.
 
+       It is possible to use variables in config files and there
+       exists also support for object oriented access to the
+       configuration.
 
 
 INSTALLATION
@@ -65,4 +68,4 @@ AUTHOR
 
 
 VERSION
-	1.36
+	2.01
