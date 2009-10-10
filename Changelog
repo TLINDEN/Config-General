@@ -1,3 +1,18 @@
+ 2.27
+         - bugfix in _store, which caused warning when saving
+	   a config containing empty hashes. Reported by 
+	   herbert breunung <deirdre_skye@web.de>.
+
+	 - removed applied patch (added in 2.20), there are no more
+  	   calls to binmode(), this destroys portability, because
+	   perls determines itself wether it uses \n or \r\n as newline.
+	   Reported by herbert breunung too.
+	
+	 - applied patch by Danial Pearce <danial@infoxchange.net.au>,
+	   scalars containing a backslash as the last character will
+	   be written out as here-doc when storing a config to disk.
+
+
  2.26
 	 - fixed invalid regexp in _open() which circumvented
 	   explicit empty block to work when the block statement

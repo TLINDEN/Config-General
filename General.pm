@@ -18,7 +18,7 @@ use strict;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = "2.26";
+$Config::General::VERSION = "2.27";
 
 use vars  qw(@ISA @EXPORT);
 @ISA    = qw(Exporter);
@@ -324,7 +324,6 @@ sub _open {
 
   if (-e $configfile) {
     open $fh, "<$configfile" or croak "Could not open $configfile!($!)\n";
-    binmode($fh);
     $this->_read($fh);
   }
   else {
@@ -891,7 +890,7 @@ sub _store {
   local $_;
   my $indent = "    " x $level;
 
-  my $config_string;
+  my $config_string = "";
 
   foreach my $entry (sort keys %config) {
     if (ref($config{$entry}) eq "ARRAY") {
@@ -927,7 +926,7 @@ sub _write_scalar {
 
   my $config_string;
 
-  if ($line =~ /\n/) {
+  if ($line =~ /\n/ || $line =~ /\\$/) {
     # it is a here doc
     my $delimiter;
     my $tmplimiter = "EOF";
@@ -1986,7 +1985,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-2.26
+2.27
 
 =cut
 
