@@ -17,7 +17,7 @@ use strict;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = "2.03";
+$Config::General::VERSION = "2.06";
 
 use vars  qw(@ISA @EXPORT);
 @ISA    = qw(Exporter);
@@ -58,6 +58,14 @@ sub new {
 	      InterPolateVars       => 0,
 
 	      ExtendedAccess        => 0,
+
+	      SplitPolicy           => 'guess', # also possible: whitespace, equalsign and custom
+
+	      SplitDelimiter        => 0,       # must be set by the user if SplitPolicy is 'custom'
+
+	      StoreDelimiter        => 0,       # will be set by me unless user uses 'custom' policy
+
+	      CComments             => 1,       # by default turned on
 
 	      parsed                => 0
 	     };
@@ -118,6 +126,10 @@ sub new {
       elsif ($conf{$entry} =~ /$self->{AutoTrueFlags}->{false}/io) {
 	$self->{$key} = 0;
       }
+      else {
+	# keep it untouched
+	$self->{$key} = $conf{$entry};
+      }
     }
 
     if ($self->{MergeDuplicateOptions}) {
@@ -135,6 +147,28 @@ sub new {
     $self->{parsed} = 1;
   }
 
+  # prepare the split delimiter if needed
+  if ($self->{SplitPolicy} ne 'guess') {
+    if ($self->{SplitPolicy} eq 'whitespace') {
+      $self->{SplitDelimiter} = '\s+';
+      $self->{StoreDelimiter} = "   " if(!$self->{StoreDelimiter});
+    }
+    elsif ($self->{SplitPolicy} eq 'equalsign') {
+      $self->{SplitDelimiter} = '\s*=\s*';
+      $self->{StoreDelimiter} = " = " if(!$self->{StoreDelimiter});
+    }
+    elsif ($self->{SplitPolicy} eq 'custom') {
+      if (! $self->{SplitDelimiter} ) {
+	croak "SplitPolicy set to 'custom' but no SplitDelimiter set.\n";
+      }
+    }
+    else {
+      croak "Unsupported SplitPolicy: $self->{SplitPolicy}.\n";
+    }
+  }
+  else {
+    $self->{StoreDelimiter} = "   " if(!$self->{StoreDelimiter});
+  }
 
   # process as usual
   if (!$self->{parsed}) {
@@ -148,7 +182,7 @@ sub new {
       $self->{config} = $configfile;
       $self->{parsed} = 1;
     }
-    elsif (ref($configfile) eq "GLOB") {
+    elsif (ref($configfile) eq "GLOB" || ref($configfile) eq "FileHandle") {
       # use the file the glob points to
       $self->_read($configfile);
       $self->{config} = $self->_parse($self->{DefaultConfig}, $self->{content});
@@ -244,27 +278,29 @@ sub _read {
 
   foreach (@stuff) {
     chomp;
-    if (/(\s*\/\*.*\*\/\s*)/) {
-      # single c-comment on one line
-      s/\s*\/\*.*\*\/\s*//;
-    }
-    elsif (/^\s*\/\*/) {                           # the beginning of a C-comment ("/*"), from now on ignore everything.
-      if (/\*\/\s*$/) {                         # C-comment end is already there, so just ignore this line!
-	$c_comment = 0;
-      }
-      else {
-	$c_comment = 1;
-      }
-    }
-    elsif (/\*\//) {
-      if (!$c_comment) {
-	warn "invalid syntax: found end of C-comment without previous start!\n";
-      }
-      $c_comment = 0;                           # the current C-comment ends here, go on
-      s/^.*\*\///;                              # if there is still stuff, it will be read
-    }
 
-    next if($c_comment);                        # ignore EVERYTHING from now on
+    if ($this->{CComments}) {
+      if (/(\s*\/\*.*\*\/\s*)/) {
+	# single c-comment on one line
+	s/\s*\/\*.*\*\/\s*//;
+      }
+      elsif (/^\s*\/\*/) {                        # the beginning of a C-comment ("/*"), from now on ignore everything.
+	if (/\*\/\s*$/) {                         # C-comment end is already there, so just ignore this line!
+	  $c_comment = 0;
+	}
+	else {
+	  $c_comment = 1;
+	}
+      }
+      elsif (/\*\//) {
+	if (!$c_comment) {
+	  warn "invalid syntax: found end of C-comment without previous start!\n";
+	}
+	$c_comment = 0;                           # the current C-comment ends here, go on
+	s/^.*\*\///;                              # if there is still stuff, it will be read
+      }
+      next if($c_comment);                        # ignore EVERYTHING from now on
+    }
 
     if (!$hierend) {                            # patch by "Manuel Valente" <manuel@ripe.net>:
       s/(?<!\\)#.+$//;                          # Remove comments
@@ -346,6 +382,8 @@ sub _parse {
   local $_;
   my $indichar = chr(182);  # ¶, inserted by _open, our here-doc indicator
 
+
+
   foreach (@{$content}) {                                  # loop over content stack
     chomp;
     $chunk++;
@@ -360,11 +398,16 @@ sub _parse {
     if (/$indichar/) {
       ($option,$value) = split /\s*$indichar\s*/, $_, 2;   # separated by heredoc-finding in _open()
     }
-    elsif (/^[^\"]+?=/) {
-      ($option,$value) = split /\s*=\s*/, $_, 2;           # using equal if not inside quotes
-    }
     else {
-      ($option,$value) = split /\s+/, $_, 2;               # option/value assignment, = is optional
+      if ($this->{SplitPolicy} eq 'guess') {
+	# again the old regex. use equalsign SplitPolicy to get the
+	# 2.00 behavior. the new regexes were too odd.
+	($option,$value) = split /\s*=\s*|\s+/, $_, 2;
+      }
+      else {
+	# no guess, use one of the configured strict split policies
+	($option,$value) = split /$this->{SplitDelimiter}/, $_, 2;
+      }
     }
 
 
@@ -704,7 +747,7 @@ sub _write_scalar {
       }
     }
     my @lines = split /\n/, $line;
-    $config_string .= $indent . $entry . " <<$delimiter\n";
+    $config_string .= $indent . $entry . $this->{StoreDelimiter} . "<<$delimiter\n";
     foreach (@lines) {
       $config_string .= $indent . $_ . "\n";
     }
@@ -713,7 +756,7 @@ sub _write_scalar {
   else {
     # a simple stupid scalar entry
     $line =~ s/#/\\#/g;
-    $config_string .= $indent . $entry . "   " . $line . "\n";
+    $config_string .= $indent . $entry . $this->{StoreDelimiter} . $line . "\n";
   }
 
   return $config_string;
@@ -1056,6 +1099,53 @@ input. See L<Config::General::Interpolated> for more informations.
 
 If set to a true value, you can use object oriented (extended) methods to
 access the parsed config. See L<Config::General::Extended> for more informations.
+
+
+=item B<-SplitPolicy>
+
+You can influence the way how Config::General decides which part of a line
+in a config file is the key and which one is the value. By default it tries
+it's best to guess. That means you can mix equalsign assignments and whitespace
+assignments.
+
+However, somtimes you may wish to make it more strictly for some reason. In
+this case you can set B<-SplitPolicy>. The possible values are: 'guess' which
+is the default, 'whitespace' which causes the module to split by whitespace,
+'equalsign' which causes it to split strictly by equal sign, or 'custom'. In the
+latter case you must also set B<-SplitDelimiter> to some regular expression
+of your choice. For example:
+
+ -SplitDelimiter => '\s*:\s*'
+
+will cause the module to split by colon while whitespaces which surrounds
+the delimiter will be removed.
+
+Please note that the delimiter used when saving a config (save_file() or save_string())
+will be choosen accordingto the current B<-SplitPolicy>. If -SplitPolicy is
+set to 'guess' or 'whitespace', 3 whitespaces will be used to delimit saved
+options. If 'custom' is set, then you need to set B<-StoreDelimiter>.
+
+=item B<-SplitDelimiter>
+
+Set this to any arbitrary regular expression which will be used for option/value
+splitting. B<-SplitPolicy> must be set to 'custom' to make this work.
+
+=item B<-StoreDelimiter>
+
+You can use this parameter to specify a custom delimiter to use when saving
+configs to a file or string. You only need to set it if you want to store
+the config back to disk and if you have B<-SplitPolicy> set to 'custom'.
+
+Be very carefull with this parameter.
+
+
+=item B<-CComments>
+
+Config::General is able to notice c-style comments (see section COMMENTS).
+But for some reason you might no need this. In this case you can turn
+this feature off by setting B<-CComments> to a false value('no', 0, 'off').
+
+By default B<-CComments> is turned on.
 
 =back
 
@@ -1581,7 +1671,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-2.03
+2.06
 
 =cut
 

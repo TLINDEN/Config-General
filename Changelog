@@ -1,3 +1,15 @@
+ 2.06    - added -SplitPolicy, -SplitDelimiter and -StoreDelimiter
+	 - removed whitespace support in keys in the default parser
+	   SplitPolicy 'guess', which was introduced in 2.02. Now
+	   I (re-)use the old regex I used before. if you need
+	   whitespaces in keys, use 'equalsign' as SplitPolicy.
+	 - the write_scalar() method uses the StoreDelimiter for
+	   separating options from values.
+	 - added -CComments to make it possible to turn c-comment
+	   parsing off.
+	 - added support for FileHandle objects as parameter to the
+	   -ConfigFile parameter. This makes it possible to use locking.
+
  2.05    - fixed bug in ::Extended. It exported for some weird
            reason I cant remember all of its methods. This included
 	   keys() exists() and delete(), which are perl internals.
