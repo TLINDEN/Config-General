@@ -13,12 +13,12 @@
 package Config::General;
 
 use FileHandle;
-use File::Spec::Functions qw(splitpath file_name_is_absolute);
+use File::Spec::Functions qw(splitpath file_name_is_absolute catfile catpath);
 use strict;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = "2.18";
+$Config::General::VERSION = "2.19";
 
 use vars  qw(@ISA @EXPORT);
 @ISA    = qw(Exporter);
@@ -42,6 +42,8 @@ sub new {
 
 	      UseApacheInclude      => 0,
 	      IncludeRelative       => 0,
+
+	      AutoLaunder           => 0,
 
 	      AutoTrue              => 0,
 
@@ -90,6 +92,9 @@ sub new {
     # be backwards compatible
     $self->{ConfigFile} = delete $conf{-file} if(exists $conf{-file});
     $self->{ConfigHash} = delete $conf{-hash} if(exists $conf{-hash});
+
+    # store search path for relative configs, if any
+    $self->{ConfigPath} = delete $conf{-ConfigPath} if(exists $conf{-ConfigPath});
 
     # store input, file, handle, or array
     $self->{ConfigFile} = delete $conf{-ConfigFile} if(exists $conf{-ConfigFile});
@@ -230,9 +235,10 @@ sub new {
 	$self->{configfile} = $self->{ConfigFile};
 	if ( file_name_is_absolute($self->{ConfigFile}) ) {
 	  # look if is is an absolute path and save the basename if it is absolute
-	  my (undef, $path, undef) = splitpath($self->{ConfigFile});
+	  my ($volume, $path, undef) = splitpath($self->{ConfigFile});
 	  $path =~ s#/$##; # remove eventually existing trailing slash
-	  $self->{configpath} = $path;
+	  $self->{ConfigPath} = [] unless $self->{ConfigPath};
+	  unshift @{$self->{ConfigPath}}, catpath($volume, $path, '');
 	}
 	$self->_open($self->{configfile});
 	# now, we parse immdediately, getall simply returns the whole hash
@@ -284,12 +290,28 @@ sub _open {
   #
   my($this, $configfile) = @_;
   my $fh = new FileHandle;
+
+  if( ! -e $configfile && defined($this->{ConfigPath}) ) {
+    # try to find the file within ConfigPath
+    foreach my $dir (@{$this->{ConfigPath}}) {
+      if( -e catfile($dir, $configfile) ) {
+	$configfile = catfile($dir, $configfile);
+	last; # found it
+      };
+    }
+  }
+
   if (-e $configfile) {
     open $fh, "<$configfile" or croak "Could not open $configfile!($!)\n";
     $this->_read($fh);
   }
   else {
-    croak "The file \"$configfile\" does not exist!\n";
+    if (defined $this->{ConfigPath}) {
+      croak "The file \"$configfile\" does not exist within ConfigPath: " . join(":", @{$this->{ConfigPath}}) . "!\n";
+    }
+    else {
+      croak "The file \"$configfile\" does not exist!\n";
+    }
   }
 }
 
@@ -315,6 +337,11 @@ sub _read {
   }
 
   foreach (@stuff) {
+    if ($this->{AutoLaunder}) {
+      m/^(.*)$/;
+      $_ = $1;
+    }
+
     chomp;
 
     if ($this->{CComments}) {
@@ -436,7 +463,7 @@ sub _read {
 	$incl_file = $1;
 	if ( $this->{IncludeRelative} && $this->{configpath} && !file_name_is_absolute($incl_file) ) {
 	  # include the file from within location of $this->{configfile}
-	  $this->_open( catfile($this->{configpath}, $incl_file) );
+	  $this->_open( $incl_file );
 	}
 	else {
 	  # include the file from within pwd, or absolute
@@ -1083,6 +1110,25 @@ will be opened from within the location of the configfile instead from within th
 location of the script($0). This works only if the configfile has a absolute pathname
 (i.e. "/etc/main.conf").
 
+If the variable B<-ConfigPath> has been set and if the file to be included could
+not be found in the location relative to the current config file, the module
+will search within B<-ConfigPath> for the file. See the description of B<-ConfigPath>
+for more details.
+
+
+=item B<-ConfigPath>
+
+As mentioned above, you can use this variable to specify a search path for relative
+config files which have to be included. Config::General will search within this
+path for the file if it cannot find the file at the location relative to the
+current config file.
+
+You must specify the path as an array ref. For example:
+
+ @path = qw(/usr/lib/perl /nfs/apps/lib /home/lib);
+ ..
+ -ConfigPath => \@path
+
 
 
 =item B<-MergeDuplicateBlocks>
@@ -1102,6 +1148,16 @@ config hash.
 Setting this option implies B<-AllowMultiOptions == false> unless you set
 B<-AllowMultiOptions> explicit to 'true'. In this case duplicate blocks are
 allowed and put into an array but dupclicate options will be merged.
+
+
+=item B<-AutoLaunder>
+
+If set to a true value, then all values in your config file will be laundered
+to allow them to be used under a -T taint flag.  This could be regarded as circumventing
+the purpose of the -T flag, however, if the bad guys can mess with your config file,
+you have problems that -T will not be able to stop.  AutoLaunder will only handle
+a config file being read from -ConfigFile.
+
 
 
 =item B<-AutoTrue>
@@ -1805,7 +1861,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-2.18
+2.19
 
 =cut
 

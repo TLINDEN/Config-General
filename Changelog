@@ -1,3 +1,16 @@
+ 2.19
+	 - forgot to import 'catfile' from File::Spec. Bug reported by
+ 	   various people.
+
+ 	 - applied patch by Peter Tandler <Peter.Tandler@ipsi.fhg.de>
+	   which adds a search-path feature for include files.
+
+	 - applied patch by David Dick <david_dick@iprimus.com.au> which
+	   adds an auto launder capability to the module which makes it
+	   possible to use variables read by Config::General in a
+	   tainted perlscript (executed with -T) for open(), backtick calls
+	   or something which the taintmode considers to be dangerous.
+
  2.18
 	 - fixed Bug #2325 (rt.cpan.org). The subs exported by File::Spec
 	   will now imported explicitly.
