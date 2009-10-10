@@ -278,7 +278,7 @@ L<Config::General>
 =head1 COPYRIGHT
 
 Copyright 2001 by Wei-Hon Chen E<lt>plasmaball@pchome.com.twE<gt>.
-Copyright 2002 by Thomas Linden <tom@daemon.de>.
+Copyright 2002-2004 by Thomas Linden <tom@daemon.de>.
 
 This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.

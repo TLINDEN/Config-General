@@ -5,7 +5,7 @@
 #          config values from a given file and
 #          return it as hash structure
 #
-# Copyright (c) 2000-2003 Thomas Linden <tom@daemon.de>.
+# Copyright (c) 2000-2004 Thomas Linden <tom@daemon.de>.
 # All Rights Reserved. Std. disclaimer applies.
 # Artificial License, same as perl itself. Have fun.
 #
@@ -18,7 +18,7 @@ use strict;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = "2.24";
+$Config::General::VERSION = "2.25";
 
 use vars  qw(@ISA @EXPORT);
 @ISA    = qw(Exporter);
@@ -67,6 +67,8 @@ sub new {
 	      StoreDelimiter        => 0,       # will be set by me unless user uses 'custom' policy
 
 	      CComments             => 1,       # by default turned on
+
+	      BackslashEscape       => 0,       # by default turned off, allows escaping anything using  the backslash
 
 	      StrictObjects         => 1,       # be strict on non-existent keys in OOP mode
 
@@ -167,6 +169,9 @@ sub new {
   elsif ($#param == 0) {
     # use of the old style
     $self->{ConfigFile} = $param[0];
+    if (ref($self->{ConfigFile}) eq "HASH") {
+      $self->{ConfigHash} = delete $self->{ConfigFile};
+    }
   }
   else {
     # this happens if $#param == -1,1 thus no param was given to new!
@@ -336,6 +341,8 @@ sub _open {
 sub _read {
   #
   # store the config contents in @content
+  # and prepare it somewhat for easier parsing later
+  # (comments, continuing lines, and stuff)
   #
   my($this, $fh, $flag) = @_;
   my(@stuff, @content, $c_comment, $longline, $hier, $hierend, @hierdoc);
@@ -425,11 +432,34 @@ sub _read {
     next if /^\s*$/;
 
 
+    # look for multiline option, indicated by a trailing backslash
+    my $extra = $this->{BackslashEscape} ? '(?<!\\\\)' : '';
+    if (/$extra\\$/) {
+      chop;
+      s/^\s*//;
+      $longline .= $_;
+      next;
+    }
 
-    # remove the \ char in front of masked "#", if any
-    s/\\#/#/g;
+    # remove the \ from all characters if BackslashEscape is turned on
+    if ($this->{BackslashEscape}) {
+      s/\\(.)/$1/g;
+    }
+    else {
+      # remove the \ char in front of masked "#", if any
+      s/\\#/#/g;
+    }
 
 
+    # transform explicit-empty blocks to conforming blocks
+    if (/^<([^\/]+?.*?)\/>$/) {
+      my $block = $1;
+      my $orig  = $_;
+      $orig     =~ s/\/>$/>/;
+      $block    =~ s/\s\s*.*$//;
+      push @{$this->{content}}, $orig, "</${block}>";
+      next;
+    }
 
 
     # look for here-doc identifier
@@ -451,16 +481,6 @@ sub _read {
 
 
 
-    # look for multiline option, indicated by a trailing backslash
-    if (/\\$/) {
-      chop;
-      s/^\s*//;
-      $longline .= $_;
-      next;
-    }
-
-
-
     ###
     ### any "normal" config lines from now on
     ###
@@ -476,11 +496,16 @@ sub _read {
     else {
       # look for include statement(s)
       my $incl_file;
+      my $path = "";
+      if (defined($this->{ConfigPath})) {
+	# fetch pathname of base config file, assuming the 1st one is the path of it
+	$path = $this->{ConfigPath}->[0];
+      }
       if (/^\s*<<include\s+(.+?)>>\s*$/i || (/^\s*include\s+(.+?)\s*$/i && $this->{UseApacheInclude})) {
 	$incl_file = $1;
-	if ( $this->{IncludeRelative} && $this->{configpath} && !file_name_is_absolute($incl_file) ) {
+	if ( $this->{IncludeRelative} && $path && !file_name_is_absolute($incl_file) ) {
 	  # include the file from within location of $this->{configfile}
-	  $this->_open( $incl_file );
+	  $this->_open( catfile($path, $incl_file) );
 	}
 	else {
 	  # include the file from within pwd, or absolute
@@ -589,13 +614,15 @@ sub _parse {
 		$config->{$option} = $this->_parse_value($option, $value);
 	      }
 	      else {
-		push @{$config->{$option}}, $this->_parse_value($option, $value); # it's already an array, just push
+		# it's already an array, just push
+		push @{$config->{$option}}, $this->_parse_value($option, $value);
 	      }
 	    }
 	  }
 	}
 	else {
-	  $config->{$option} = $this->_parse_value($option, $value); # standard config option, insert key/value pair into node
+	  # standard config option, insert key/value pair into node
+	  $config->{$option} = $this->_parse_value($option, $value);
 	}
       }
     }
@@ -646,7 +673,6 @@ sub _parse {
 	  }
 	  else {
 	    # the first occurence of this particular named block
-	    #### $config->{$block}->{$blockname} = $this->_parse($config->{$block}->{$blockname}, \@newcontent);
 	    $config->{$block}->{$blockname} = $this->_parse($this->_hashref(), \@newcontent);
 	  }
 	  $this->_backlast($blockname);
@@ -1408,6 +1434,14 @@ this feature off by setting B<-CComments> to a false value('no', 0, 'off').
 
 By default B<-CComments> is turned on.
 
+
+=item B<-BackslashEscape>
+
+If you turn on this parameter, a backslash can be used to escape any special
+character within configurations.
+
+By default it is turned off.
+
 =back
 
 
@@ -1622,6 +1656,26 @@ inside the block(which may again be nested!). As examples says more than words:
 
 You cannot have more than one named block with the same name because it will
 be stored in a hashref and therefore be overwritten if a block occurs once more.
+
+
+
+=head1 EXPICIT EMPTY BLOCKS
+
+Beside the notation of blocks mentioned above it is possible to use
+explicit empty blocks.
+
+Normally you would write this in your config to define an empty
+block:
+
+ <driver Apache>
+ </driver>
+
+To save writing you can also write:
+
+ <driver Apache/>
+
+which is the very same as above. This works for normal blocks and
+for named blocks.
 
 
 
@@ -1915,7 +1969,7 @@ I recommend you to read the following documentations, which are supplied with pe
 
 =head1 COPYRIGHT
 
-Copyright (c) 2000-2003 Thomas Linden
+Copyright (c) 2000-2004 Thomas Linden
 
 This library is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
@@ -1932,7 +1986,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-2.24
+2.25
 
 =cut
 
