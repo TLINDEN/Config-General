@@ -18,7 +18,7 @@ use strict;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = "2.23";
+$Config::General::VERSION = "2.24";
 
 use vars  qw(@ISA @EXPORT);
 @ISA    = qw(Exporter);
@@ -170,7 +170,7 @@ sub new {
   }
   else {
     # this happens if $#param == -1,1 thus no param was given to new!
-    $self->{config} = $this->_hashref();
+    $self->{config} = $self->_hashref();
     $self->{parsed} = 1;
   }
 
@@ -611,6 +611,10 @@ sub _parse {
       else {                        # calling myself recursively, end of $block reached, $block_level is 0
 	if ($blockname) {           # a named block, make it a hashref inside a hash within the current node
 	  $this->_savelast($blockname);
+
+	  $config->{$block} = $this->_hashref() # Make sure that the hash is not created implicitely
+	    unless exists $config->{$block};
+
 	  if (exists $config->{$block}->{$blockname}) {    # the named block already exists, make it an array
 	    if ($this->{MergeDuplicateBlocks}) {
 	      # just merge the new block with the same name as an existing one into
@@ -1928,7 +1932,7 @@ Thomas Linden <tom@daemon.de>
 
 =head1 VERSION
 
-2.23
+2.24
 
 =cut
 

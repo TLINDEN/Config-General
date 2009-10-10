@@ -1,3 +1,16 @@
+ 2.24
+	 - fixed Bug #3869 (rt.cpan.org) reported by
+	   "Mike Depot" <mdepot@comcast.net>
+
+	 - applied patch by Roland Huss <Roland.Huss@consol.de>,
+	   which fixes a bug with the -Tie option, sub-hashes of
+	   named blocks were not properly created (in fact, not
+	   tied).
+
+	 - added documentation to Interpolated.pm that it does not
+	   interpolate variables in keys, see bug #3773 (rt.cpan.org).
+	   
+
  2.23
          - still versioning problem, stupid white man ;-)
 	   Extended.pm is now 2.00 which *is* higher than 1.10.
@@ -20,7 +33,7 @@
 	   sets $/ if it is unset.
 
 	 - added patch by David Dick <david_dick@iprimus.com.au> which
-	   calls the bindmode() function in case the modules is being
+	   calls the binmode() function in case the modules is being
 	   used under win32 systems. Read perldoc -f binmode for more
 	   informations on this issue.
 

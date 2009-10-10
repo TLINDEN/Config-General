@@ -1,5 +1,5 @@
 package Config::General::Interpolated;
-$Config::General::Interpolated::VERSION = "2.03";
+$Config::General::Interpolated::VERSION = "2.04";
 
 use strict;
 use Carp;
@@ -209,9 +209,13 @@ Normally you don't call it directly.
 =head1 VARIABLES
 
 Variables can be defined everywhere in the config and can be used
-afterwards. If you define a variable inside a block or a named block
-then it is only visible within this block or within blocks which
-are defined inside this block. Well - let's take a look to an example:
+afterwards as the value of an option. Variables cannot be used as
+keys or as part of keys.
+
+If you define a variable inside
+a block or a named block then it is only visible within this block or
+within blocks which are defined inside this block. Well - let's take a
+look to an example:
 
  # sample config which uses variables
  basedir   = /opt/ora
@@ -283,7 +287,7 @@ See L<http://www.perl.com/perl/misc/Artistic.html>
 
 =head1 VERSION
 
-2.02
+2.04
 
 =cut
 
