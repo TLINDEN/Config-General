@@ -8,7 +8,7 @@
 
 
 use Data::Dumper;
-use Test::More tests => 51;
+use Test::More tests => 53;
 #use Test::More qw(no_plan);
 
 # ahem, we deliver the test code with a local copy of
@@ -650,3 +650,15 @@ my $cfg48 = new Config::General(
 %hash48 = $cfg48->getall();
 my $str48 = $cfg48->save_string(\%hash48);
 is( $str48, $ostr48, "tied hash test");
+
+
+# Check whether we can create a C::G object when -ConfigFile is passed as a stringify-able object.
+use PathObject;
+my $cfgFileObject = new PathObject;
+my $cfg49 = new Config::General(
+				-ConfigFile => $cfgFileObject,
+				-ExtendedAccess    => 1
+    );
+ok($cfg49, "Creating a new object using the stringify-able file object way");
+my $domain49 = $cfg49->keys("domain");
+ok($domain49, "Config object created using the stringify-able file object way contains the domain section.");
