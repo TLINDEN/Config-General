@@ -66,6 +66,12 @@ sub _interpolate  {
   #
   my ($this, $config, $key, $value) = @_;
 
+  if (! defined($value)) {
+    # bugfix rt.cpan.org#50329
+    # nothing to do here
+    return $value;
+  }
+
   # some dirty trick to circumvent single quoted vars to be interpolated
   # we remove all quotes and replace them with unique random literals,
   # which will be replaced after interpolation with the original quotes
