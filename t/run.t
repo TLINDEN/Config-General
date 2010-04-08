@@ -8,8 +8,8 @@
 
 
 use Data::Dumper;
-use Test::More tests => 53;
-#use Test::More qw(no_plan);
+#use Test::More tests => 57;
+use Test::More qw(no_plan);
 
 # ahem, we deliver the test code with a local copy of
 # the Tie::IxHash module so we can do tests on sorted
@@ -508,6 +508,9 @@ my $expect46 = {
 is_deeply($expect46, \%conf46, "Variables inside single quotes");
 
 
+
+
+
 # complexity test
 # check the combination of various features
 my $conf47 = new Config::General(
@@ -549,7 +552,7 @@ my $expect47 = {
                  },
           'onflag' => 1,
           'var2' => 'zeppelin',
-          'ignore' => '\\$set',
+          'ignore' => '$set', # escaped $ should get to plain $, not \\$!
           'quote' => 'this should be \'kept: $set\' and not be \'$set!\'',
           'x5' => {
                     'klack' => '11111'
@@ -614,7 +617,7 @@ my $expect47 = {
   work
   too!'
 };
-
+#scip
 is_deeply($expect47, \%conf47, "complexity test");
 
 # check if sorted save works
@@ -652,13 +655,50 @@ my $str48 = $cfg48->save_string(\%hash48);
 is( $str48, $ostr48, "tied hash test");
 
 
-# Check whether we can create a C::G object when -ConfigFile is passed as a stringify-able object.
-use PathObject;
-my $cfgFileObject = new PathObject;
-my $cfg49 = new Config::General(
-				-ConfigFile => $cfgFileObject,
-				-ExtendedAccess    => 1
-    );
-ok($cfg49, "Creating a new object using the stringify-able file object way");
-my $domain49 = $cfg49->keys("domain");
-ok($domain49, "Config object created using the stringify-able file object way contains the domain section.");
+
+# check for undef and -w
+{
+my $ostr49 = "foo\n";
+local $^W = 1;
+my $cfg49 =  new Config::General( -String => $ostr49 );
+my %hash49 = $cfg49->getall();
+ok( exists $hash49{foo}, "value for undefined key found");
+is( $hash49{foo}, undef, "value returned as expected - undef");
+
+# repeat with interpolation turned on
+$cfg49 =  new Config::General( -String => $ostr49, -InterPolateVars => 1 );
+%hash49 = $cfg49->getall();
+ok( exists $hash49{foo}, "value for undefined key found");
+is( $hash49{foo}, undef, "value returned as expected - undef");
+$^W = 0;
+}
+
+
+# verifies bug fix rt#54580
+# Test handling of values containing *many* single-quoted strings
+# when -InterPolateVars option is set
+my $dupcount50 = 2000;
+my $ostr50;
+foreach my $counter ( reverse 1 .. $dupcount50 ) {
+  $ostr50 .= " 'luck${counter}'";
+}
+$ostr50 =~ s{\A }{};
+my $cfgsrc50 = 'test_single_many ' . $ostr50;
+$cfg50 =  new Config::General( -String => $cfgsrc50, -InterPolateVars => 1 );
+%hash50 = $cfg50->getall();
+is($hash50{test_single_many}, $ostr50, "value with single-quote strings is as expected" );
+
+
+# check for escaped chars
+my $cfg51  =  new Config::General( -ConfigFile => "t/cfg.51" );
+my %hash51 = $cfg51->getall();
+is($hash51{dollar},    '$foo',                 "keep escaped dollar character");
+is($hash51{backslash}, 'contains \ backslash', "keep escaped backslash character");
+is($hash51{prize},     '18 $',                 "keep un-escaped dollar character");
+is($hash51{hostparam}, q("'wsh.dir'"),         "keep escaped quote character");
+
+# now save it to a file and re-read it in and see if everything remains escaped
+$cfg51->save_file("t/cfg.51.out");
+$cfg51  =  new Config::General( -ConfigFile => "t/cfg.51.out", -InterPolateVars => 1 );
+my %hash51new = $cfg51->getall();
+is_deeply(\%hash51, \%hash51new, "compare saved config containing escaped chars");

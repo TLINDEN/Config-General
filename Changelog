@@ -1,3 +1,19 @@
+2.45
+	- fixed rt.cpan.org#50647 escaping bug. Now escaped $ or
+	  backslash characters are handled correctly (across save too)
+
+	- fixed rt.cpan.org#52047, tied hash will remain tied
+	  when savong to a file.
+
+	- fixed rt.cpan.org#54580, preserve single quotes during
+	  variable interpolation corrected. No more using rand()
+	  to mark single quotes but an incrementor instead.
+
+	- fixed rt.cpan.org#42721+54583, empty config values will no
+	  more handed over to interpreting methods (as interpolate
+	  or autotrue and the like) but returned as undef untouched.
+
+
 2.44
 	- fixed rt.cpan.org#49023 by rolling back change in 2.43
 	   in line 158, regarding GLOB support.

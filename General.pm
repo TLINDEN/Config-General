@@ -5,7 +5,7 @@
 #          config values from a given file and
 #          return it as hash structure
 #
-# Copyright (c) 2000-2009 Thomas Linden <tlinden |AT| cpan.org>.
+# Copyright (c) 2000-20010Thomas Linden <tlinden |AT| cpan.org>.
 # All Rights Reserved. Std. disclaimer applies.
 # Artificial License, same as perl itself. Have fun.
 #
@@ -32,7 +32,7 @@ use Carp::Heavy;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = 2.44;
+$Config::General::VERSION = 2.45;
 
 use vars  qw(@ISA @EXPORT_OK);
 use base qw(Exporter);
@@ -79,7 +79,7 @@ sub new {
 	      SplitDelimiter        => 0,       # must be set by the user if SplitPolicy is 'custom'
 	      StoreDelimiter        => 0,       # will be set by me unless user uses 'custom' policy
 	      CComments             => 1,       # by default turned on
-	      BackslashEscape       => 0,       # by default turned off, allows escaping anything using  the backslash
+	      BackslashEscape       => 0,       # deprecated
 	      StrictObjects         => 1,       # be strict on non-existent keys in OOP mode
 	      StrictVars            => 1,       # be strict on undefined variables in Interpolate mode
 	      Tie                   => q(),      # could be set to a perl module for tie'ing new hashes
@@ -377,7 +377,6 @@ sub _prepare {
     $self->{SlashIsDirectory}   = 1;
     $self->{SplitPolicy}        = 'whitespace';
     $self->{CComments}          = 0;
-    $self->{BackslashEscape}    = 1;
   }
 }
 
@@ -620,8 +619,9 @@ sub _read {
 
 
     # look for multiline option, indicated by a trailing backslash
-    my $extra = $this->{BackslashEscape} ? '(?<!\\\\)' : q();
-    if (/$extra\\$/) {
+    #my $extra = $this->{BackslashEscape} ? '(?<!\\\\)' : q();
+    #if (/$extra\\$/) {
+    if (/(?<!\\)\\$/) {
       chop;
       s/^\s*//;
       $longline .= $_;
@@ -630,13 +630,13 @@ sub _read {
 
     # remove the \ from all characters if BackslashEscape is turned on
     # FIXME (rt.cpan.org#33218
-    if ($this->{BackslashEscape}) {
-      s/\\(.)/$1/g;
-    }
-    else {
-      # remove the \ char in front of masked "#", if any
-      s/\\#/#/g;
-    }
+    #if ($this->{BackslashEscape}) {
+    #  s/\\(.)/$1/g;
+    #}
+    #else {
+    #  # remove the \ char in front of masked "#", if any
+    #  s/\\#/#/g;
+    #}
 
 
     # transform explicit-empty blocks to conforming blocks
@@ -1041,7 +1041,9 @@ sub _parse_value {
 
   # avoid "Use of uninitialized value"
   if (! defined $value) {
-    $value = undef; # bigfix rt.cpan.org#42721  q();
+    # patch fix rt#54583
+    # Return an input undefined value without trying transformations
+    return $value;
   }
 
   if ($this->{InterPolateVars}) {
@@ -1073,6 +1075,10 @@ sub _parse_value {
       $value = \%__flags;
     }
   }
+
+  # are there any escaped characters left? put them out as is
+  $value =~ s/\\([\$\\\"])/$1/g;
+
   return $value;
 }
 
@@ -1087,7 +1093,7 @@ sub NoMultiOptions {
   # Since we do parsing from within new(), we must
   # call it again if one turns NoMultiOptions on!
   #
-  croak q(Config::Genera: lThe NoMultiOptions() method is deprecated. Set 'AllowMultiOptions' to 'no' instead!);
+  croak q(Config::General: The NoMultiOptions() method is deprecated. Set 'AllowMultiOptions' to 'no' instead!);
 }
 
 
@@ -1193,48 +1199,22 @@ sub _store {
 
   my $config_string = q();
 
-  if($this->{SaveSorted}) {
-    # ahm, well this might look strange because the two loops
-    # are obviously the same, but I don't know how to call
-    # a foreach() with sort and without sort() on the same
-    # line (I think it's impossible)
-    foreach my $entry (sort keys %{$config}) {
-      if (ref($config->{$entry}) eq 'ARRAY') {
-        foreach my $line (sort @{$config->{$entry}}) {
-          if (ref($line) eq 'HASH') {
-            $config_string .= $this->_write_hash($level, $entry, $line);
-          }
-          else {
-            $config_string .= $this->_write_scalar($level, $entry, $line);
-          }
+  foreach my $entry ( $this->{SaveSorted} ? sort keys %$config : keys %$config ) {
+    if (ref($config->{$entry}) eq 'ARRAY') {
+      foreach my $line (sort @{$config->{$entry}}) {
+        if (ref($line) eq 'HASH') {
+          $config_string .= $this->_write_hash($level, $entry, $line);
         }
-      }
-      elsif (ref($config->{$entry}) eq 'HASH') {
-        $config_string .= $this->_write_hash($level, $entry, $config->{$entry});
-      }
-      else {
-        $config_string .= $this->_write_scalar($level, $entry, $config->{$entry});
+        else {
+          $config_string .= $this->_write_scalar($level, $entry, $line);
+        }
       }
     }
-  }
-  else {
-    foreach my $entry (keys %{$config}) {
-      if (ref($config->{$entry}) eq 'ARRAY') {
-        foreach my $line (@{$config->{$entry}}) {
-          if (ref($line) eq 'HASH') {
-            $config_string .= $this->_write_hash($level, $entry, $line);
-          }
-          else {
-            $config_string .= $this->_write_scalar($level, $entry, $line);
-          }
-        }
-      }
-      elsif (ref($config->{$entry}) eq 'HASH') {
-        $config_string .= $this->_write_hash($level, $entry, $config->{$entry});
-      }
-      else {
-        $config_string .= $this->_write_scalar($level, $entry, $config->{$entry});
-      }
+    elsif (ref($config->{$entry}) eq 'HASH') {
+      $config_string .= $this->_write_hash($level, $entry, $config->{$entry});
+    }
+    else {
+      $config_string .= $this->_write_scalar($level, $entry, $config->{$entry});
     }
   }
 
@@ -1253,14 +1233,18 @@ sub _write_scalar {
 
   my $config_string;
 
-  if ($line =~ /\n/ || $line =~ /\\$/) {
+  # patch fix rt#54583
+  if ( ! defined $line ) {
+    $config_string .= $indent . $entry . "\n";
+  }
+  elsif ($line =~ /\n/ || $line =~ /\\$/) {
     # it is a here doc
     my $delimiter;
     my $tmplimiter = 'EOF';
     while (!$delimiter) {
       # create a unique here-doc identifier
       if ($line =~ /$tmplimiter/s) {
-	$tmplimiter .= q(%);
+	$tmplimiter .= '%';
       }
       else {
 	$delimiter = $tmplimiter;
@@ -1275,7 +1259,10 @@ sub _write_scalar {
   }
   else {
     # a simple stupid scalar entry
-    $line =~ s/#/\\#/g;
+
+    # re-escape contained $ or # or \ chars
+    $line =~ s/([#\$\\\"])/\\$1/g;
+
     # bugfix rt.cpan.org#42287
     if ($line =~ /^\s/ or $line =~ /\s$/) {
       # need to quote it
@@ -1811,14 +1798,7 @@ By default B<-CComments> is turned on.
 
 =item B<-BackslashEscape>
 
-If you turn on this parameter, a backslash can be used to escape any special
-character within configurations.
-
-By default it is turned off.
-
-Be careful with this option, as it removes all backslashes after parsing.
-
-B<This option might be removed in future versions>.
+B<Deprecated Option>.
 
 =item B<-SlashIsDirectory>
 
@@ -1881,7 +1861,6 @@ The following options will be set:
  SlashIsDirectory   = 1
  SplitPolicy        = 'equalsign'
  CComments          = 0
- BackslashEscape    = 1
 
 Take a look into the particular documentation sections what
 those options are doing.
@@ -2502,7 +2481,7 @@ I recommend you to read the following documents, which are supplied with Perl:
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (c) 2000-2009 Thomas Linden
+Copyright (c) 2000-2010 Thomas Linden
 
 This library is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
@@ -2531,7 +2510,7 @@ Thomas Linden <tlinden |AT| cpan.org>
 
 =head1 VERSION
 
-2.44
+2.45
 
 =cut
 

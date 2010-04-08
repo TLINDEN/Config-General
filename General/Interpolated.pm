@@ -2,13 +2,13 @@
 # Config::General::Interpolated - special Class based on Config::General
 #
 # Copyright (c) 2001 by Wei-Hon Chen <plasmaball@pchome.com.tw>.
-# Copyright (c) 2000-2009 by Thomas Linden <tlinden |AT| cpan.org>.
+# Copyright (c) 2000-2010 by Thomas Linden <tlinden |AT| cpan.org>.
 # All Rights Reserved. Std. disclaimer applies.
 # Artificial License, same as perl itself. Have fun.
 #
 
 package Config::General::Interpolated;
-$Config::General::Interpolated::VERSION = "2.11";
+$Config::General::Interpolated::VERSION = "2.12";
 
 use strict;
 use Carp;
@@ -65,12 +65,7 @@ sub _interpolate  {
   # called directly by Config::General::_parse_value()
   #
   my ($this, $config, $key, $value) = @_;
-
-  if (! defined($value)) {
-    # bugfix rt.cpan.org#50329
-    # nothing to do here
-    return $value;
-  }
+  my $quote_counter = 100;
 
   # some dirty trick to circumvent single quoted vars to be interpolated
   # we remove all quotes and replace them with unique random literals,
@@ -78,7 +73,7 @@ sub _interpolate  {
   # fixes bug rt#35766
   my %quotes;
   $value =~ s/(\'[^\']+?\')/
-    my $key = "QUOTE" . int(rand(1000)) . "QUOTE";
+    my $key = "QUOTE" . ($quote_counter++) . "QUOTE";
     $quotes{ $key } = $1;
     $key;
   /gex;
@@ -100,14 +95,12 @@ sub _interpolate  {
 	$con;
       }
     }
+    elsif ($this->{StrictVars}) {
+      croak "Use of uninitialized variable (\$$var) while loading config entry: $key = $value\n";
+    }
     else {
-      if ($this->{StrictVars}) {
-	croak "Use of uninitialized variable (\$$var) while loading config entry: $key = $value\n";
-      }
-      else {
-	# be cool
-	$con;
-      }
+      # be cool
+      $con;
     }
   }egx;
 
@@ -345,7 +338,7 @@ L<Config::General>
 =head1 COPYRIGHT
 
 Copyright 2001 by Wei-Hon Chen E<lt>plasmaball@pchome.com.twE<gt>.
-Copyright 2002-2009 by Thomas Linden <tlinden |AT| cpan.org>.
+Copyright 2002-2010 by Thomas Linden <tlinden |AT| cpan.org>.
 
 This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
@@ -354,7 +347,7 @@ See L<http://www.perl.com/perl/misc/Artistic.html>
 
 =head1 VERSION
 
-2.11
+2.12
 
 =cut
 
