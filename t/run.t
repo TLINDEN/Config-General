@@ -8,8 +8,8 @@
 
 
 use Data::Dumper;
-#use Test::More tests => 57;
-use Test::More qw(no_plan);
+use Test::More tests => 61;
+#use Test::More qw(no_plan);
 
 # ahem, we deliver the test code with a local copy of
 # the Tie::IxHash module so we can do tests on sorted

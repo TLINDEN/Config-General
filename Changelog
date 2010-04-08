@@ -1,3 +1,9 @@
+2.46
+	- fixed rt.cpan.org#56370: there was a sort() call in _store()
+	  left, which lead to sorted arrays even if -SaveSorted were
+	  turned off.
+
+
 2.45
 	- fixed rt.cpan.org#50647 escaping bug. Now escaped $ or
 	  backslash characters are handled correctly (across save too)

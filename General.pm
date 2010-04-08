@@ -32,7 +32,7 @@ use Carp::Heavy;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = 2.45;
+$Config::General::VERSION = 2.46;
 
 use vars  qw(@ISA @EXPORT_OK);
 use base qw(Exporter);
@@ -1201,7 +1201,7 @@ sub _store {
 
   foreach my $entry ( $this->{SaveSorted} ? sort keys %$config : keys %$config ) {
     if (ref($config->{$entry}) eq 'ARRAY') {
-      foreach my $line (sort @{$config->{$entry}}) {
+      foreach my $line ( $this->{SaveSorted} ? sort @{$config->{$entry}} : @{$config->{$entry}} ) {
         if (ref($line) eq 'HASH') {
           $config_string .= $this->_write_hash($level, $entry, $line);
         }
@@ -2510,7 +2510,7 @@ Thomas Linden <tlinden |AT| cpan.org>
 
 =head1 VERSION
 
-2.45
+2.46
 
 =cut
 
