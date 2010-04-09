@@ -5,7 +5,7 @@
 #          config values from a given file and
 #          return it as hash structure
 #
-# Copyright (c) 2000-20010Thomas Linden <tlinden |AT| cpan.org>.
+# Copyright (c) 2000-2010 Thomas Linden <tlinden |AT| cpan.org>.
 # All Rights Reserved. Std. disclaimer applies.
 # Artistic License, same as perl itself. Have fun.
 #
@@ -32,7 +32,7 @@ use Carp::Heavy;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = 2.47;
+$Config::General::VERSION = 2.48;
 
 use vars  qw(@ISA @EXPORT_OK);
 use base qw(Exporter);
@@ -2532,7 +2532,7 @@ Thomas Linden <tlinden |AT| cpan.org>
 
 =head1 VERSION
 
-2.47
+2.48
 
 =cut
 
