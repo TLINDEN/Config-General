@@ -2245,13 +2245,13 @@ with identical names!
 =head2 FORCE SINGLE VALUE ARRAYS
 
 You may also force a single config line to get parsed into an array by
-turning on the option B<-ForceArray> on and by surrounding the value of the
+turning on the option B<-ForceArray> and by surrounding the value of the
 config entry by []. Example:
 
  hostlist = [ foo.bar ]
 
 Will be a singlevalue array entry if the option is turned on. If you want
-it to remain to be an array you have to turn on B<-ForceArray> suring save too.
+it to remain to be an array you have to turn on B<-ForceArray> during save too.
 
 =head1 LONG LINES
 
