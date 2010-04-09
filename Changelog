@@ -1,15 +1,18 @@
-2.47
+ 2.47
 	- fixed rt.cpan.org#53759 by adding new option -ForceArray.
 	  when enabled a single config value enclosed in [] will become
 	  an array forcefully.
 
-2.46
+	- fixed typo in license: it is "artistic", not "artificial".
+
+
+ 2.46
 	- fixed rt.cpan.org#56370: there was a sort() call in _store()
 	  left, which lead to sorted arrays even if -SaveSorted were
 	  turned off.
 
 
-2.45
+ 2.45
 	- fixed rt.cpan.org#50647 escaping bug. Now escaped $ or
 	  backslash characters are handled correctly (across save too)
 
@@ -25,11 +28,11 @@
 	  or autotrue and the like) but returned as undef untouched.
 
 
-2.44
+ 2.44
 	- fixed rt.cpan.org#49023 by rolling back change in 2.43
 	   in line 158, regarding GLOB support.
 	
-2.43
+ 2.43
 	- fixed rt.cpan.org#40925, $indichar replaced by internal
 	  configuration variable EOFseparator, which contains
 	  a 256 bit SHA checksum of the date I fixed the bug.
