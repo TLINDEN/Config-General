@@ -7,7 +7,7 @@
 #
 # Copyright (c) 2000-20010Thomas Linden <tlinden |AT| cpan.org>.
 # All Rights Reserved. Std. disclaimer applies.
-# Artificial License, same as perl itself. Have fun.
+# Artistic License, same as perl itself. Have fun.
 #
 # namespace
 package Config::General;

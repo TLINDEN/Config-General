@@ -4,11 +4,11 @@
 # Copyright (c) 2001 by Wei-Hon Chen <plasmaball@pchome.com.tw>.
 # Copyright (c) 2000-2010 by Thomas Linden <tlinden |AT| cpan.org>.
 # All Rights Reserved. Std. disclaimer applies.
-# Artificial License, same as perl itself. Have fun.
+# Artistic License, same as perl itself. Have fun.
 #
 
 package Config::General::Interpolated;
-$Config::General::Interpolated::VERSION = "2.12";
+$Config::General::Interpolated::VERSION = "2.13";
 
 use strict;
 use Carp;
@@ -347,7 +347,7 @@ See L<http://www.perl.com/perl/misc/Artistic.html>
 
 =head1 VERSION
 
-2.12
+2.13
 
 =cut
 

@@ -1,5 +1,3 @@
-# http://module-build.sourceforge.net/META-spec.html
-#XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
 name:         Config-General
 version:      2.45
 version_from: General.pm
@@ -9,6 +7,10 @@ requires:
     File::Spec::Functions:         0
     FileHandle:                    0
     IO::File:                      0
-
+resources:
+    bugtracker: https://rt.cpan.org/Public/Dist/Display.html?Name=Config-General
+    homepage:   http://search.cpan.org/dist/Config-General/
+    license:    http://dev.perl.org/licenses/artistic.html
+    repository: http://dev.catalyst.perl.org/repos/Config-General
 distribution_type: module
 generated_by: ExtUtils::MakeMaker version 6.30

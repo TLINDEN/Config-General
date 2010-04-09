@@ -3,7 +3,7 @@
 #
 # Copyright (c) 2000-2008 Thomas Linden <tlinden |AT| cpan.org>.
 # All Rights Reserved. Std. disclaimer applies.
-# Artificial License, same as perl itself. Have fun.
+# Artistic License, same as perl itself. Have fun.
 #
 
 # namespace
@@ -23,7 +23,7 @@ use vars qw(@ISA @EXPORT);
 use strict;
 
 
-$Config::General::Extended::VERSION = "2.03";
+$Config::General::Extended::VERSION = "2.04";
 
 
 sub new {
@@ -593,7 +593,7 @@ Thomas Linden <tlinden |AT| cpan.org>
 
 =head1 VERSION
 
-2.03
+2.04
 
 =cut
 

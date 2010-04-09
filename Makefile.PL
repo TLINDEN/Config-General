@@ -1,9 +1,9 @@
 #
 # Makefile.PL - build file for Config::General
 #
-# Copyright (c) 2000-2007 Thomas Linden <tom@daemon.de>.
+# Copyright (c) 2000-2010 Thomas Linden <tom@daemon.de>.
 # All Rights Reserved. Std. disclaimer applies.
-# Artificial License, same as perl itself. Have fun.
+# Artistic License, same as perl itself. Have fun.
 #
 
 use ExtUtils::MakeMaker;
