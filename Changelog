@@ -1,3 +1,8 @@
+2.47
+	- fixed rt.cpan.org#53759 by adding new option -ForceArray.
+	  when enabled a single config value enclosed in [] will become
+	  an array forcefully.
+
 2.46
 	- fixed rt.cpan.org#56370: there was a sort() call in _store()
 	  left, which lead to sorted arrays even if -SaveSorted were

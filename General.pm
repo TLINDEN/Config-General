@@ -32,7 +32,7 @@ use Carp::Heavy;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = 2.46;
+$Config::General::VERSION = 2.47;
 
 use vars  qw(@ISA @EXPORT_OK);
 use base qw(Exporter);
@@ -86,7 +86,8 @@ sub new {
 	      parsed                => 0,       # internal state stuff for variable interpolation
 	      files                 => {},      # which files we have read, if any
 	      UTF8                  => 0,
-	      SaveSorted            => 0
+	      SaveSorted            => 0,
+              ForceArray            => 0        # force single value array if value enclosed in []
 	     };
 
   # create the class instance
@@ -864,13 +865,19 @@ sub _parse {
 	  }
 	}
 	else {
-	  # standard config option, insert key/value pair into node
-	  $config->{$option} = $this->_parse_value($config, $option, $value);
+          if($this->{ForceArray} && $value =~ /^\[\s*(.+?)\s*\]$/) {
+            # force single value array entry
+            push @{$config->{$option}}, $this->_parse_value($config, $option, $1);
+          }
+          else {
+	    # standard config option, insert key/value pair into node
+	    $config->{$option} = $this->_parse_value($config, $option, $value);
 
-	  if ($this->{InterPolateVars}) {
-	    # save pair on local stack
-	    $config->{__stack}->{$option} = $config->{$option};
-	  }
+	    if ($this->{InterPolateVars}) {
+	      # save pair on local stack
+	      $config->{__stack}->{$option} = $config->{$option};
+	    }
+          }
 	}
       }
     }
@@ -1201,12 +1208,18 @@ sub _store {
 
   foreach my $entry ( $this->{SaveSorted} ? sort keys %$config : keys %$config ) {
     if (ref($config->{$entry}) eq 'ARRAY') {
-      foreach my $line ( $this->{SaveSorted} ? sort @{$config->{$entry}} : @{$config->{$entry}} ) {
-        if (ref($line) eq 'HASH') {
-          $config_string .= $this->_write_hash($level, $entry, $line);
-        }
-        else {
-          $config_string .= $this->_write_scalar($level, $entry, $line);
+      if( $this->{ForceArray} && scalar @{$config->{$entry}} == 1 && ! ref($config->{$entry}->[0]) ) {
+        # a single value array forced to stay as array
+        $config_string .= $this->_write_scalar($level, $entry, '[' . $config->{$entry}->[0] . ']');
+      }
+      else {
+        foreach my $line ( $this->{SaveSorted} ? sort @{$config->{$entry}} : @{$config->{$entry}} ) {
+          if (ref($line) eq 'HASH') {
+            $config_string .= $this->_write_hash($level, $entry, $line);
+          }
+          else {
+            $config_string .= $this->_write_scalar($level, $entry, $line);
+          }
         }
       }
     }
@@ -2154,7 +2167,7 @@ for named blocks.
 
 
 
-=head1 IDENTICAL OPTIONS
+=head1 IDENTICAL OPTIONS (ARRAYS)
 
 You may have more than one line of the same option with different values.
 
@@ -2229,7 +2242,16 @@ by setting the flag I<AllowMultiOptions> in the B<new()> method to "no".
 If turned off, Config::General will complain about multiple occurring options
 with identical names!
 
+=head2 FORCE SINGLE VALUE ARRAYS
 
+You may also force a single config line to get parsed into an array by
+turning on the option B<-ForceArray> on and by surrounding the value of the
+config entry by []. Example:
+
+ hostlist = [ foo.bar ]
+
+Will be a singlevalue array entry if the option is turned on. If you want
+it to remain to be an array you have to turn on B<-ForceArray> suring save too.
 
 =head1 LONG LINES
 
@@ -2510,7 +2532,7 @@ Thomas Linden <tlinden |AT| cpan.org>
 
 =head1 VERSION
 
-2.46
+2.47
 
 =cut
 

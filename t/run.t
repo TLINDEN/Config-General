@@ -8,7 +8,7 @@
 
 
 use Data::Dumper;
-use Test::More tests => 61;
+use Test::More tests => 63;
 #use Test::More qw(no_plan);
 
 # ahem, we deliver the test code with a local copy of
@@ -702,3 +702,14 @@ $cfg51->save_file("t/cfg.51.out");
 $cfg51  =  new Config::General( -ConfigFile => "t/cfg.51.out", -InterPolateVars => 1 );
 my %hash51new = $cfg51->getall();
 is_deeply(\%hash51, \%hash51new, "compare saved config containing escaped chars");
+
+
+# check if forced single value arrays remain
+my $cfg52  = new Config::General( -String => "habeas = [ corpus ]", -ForceArray => 1);
+my %hash52 = $cfg52->getall();
+my @array52 = qw(corpus);
+is_deeply($hash52{habeas}, \@array52, "check -ForceArray single value arrays");
+$cfg52->save_file("t/cfg.52.out");
+$cfg52 = new Config::General( -ConfigFile => "t/cfg.52.out", -ForceArray => 1);
+my %hash52new = $cfg52->getall();
+is_deeply(\%hash52new, \%hash52, "check -ForceArray single value arrays during save()");
