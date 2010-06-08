@@ -1,3 +1,10 @@
+ 2.49
+	- fixed rt.cpan.org#56532, '#' missed during fix for
+	  56370 in 2.45.
+
+	- added test case for this too
+
+
  2.48
 	- arg, uploaded the wrong file to pause, so another version
 	  bump up.

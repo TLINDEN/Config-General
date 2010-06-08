@@ -2,3 +2,4 @@ dollar = \$foo
 backslash = contains \\ backslash
 prize = 18 $
 hostparam = "\"'wsh.dir'\""
+bgcolor = \#fff

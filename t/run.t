@@ -8,7 +8,7 @@
 
 
 use Data::Dumper;
-use Test::More tests => 63;
+use Test::More tests => 64;
 #use Test::More qw(no_plan);
 
 # ahem, we deliver the test code with a local copy of
@@ -696,6 +696,7 @@ is($hash51{dollar},    '$foo',                 "keep escaped dollar character");
 is($hash51{backslash}, 'contains \ backslash', "keep escaped backslash character");
 is($hash51{prize},     '18 $',                 "keep un-escaped dollar character");
 is($hash51{hostparam}, q("'wsh.dir'"),         "keep escaped quote character");
+is($hash51{bgcolor},   '#fff',                 "keep escaped number sign");
 
 # now save it to a file and re-read it in and see if everything remains escaped
 $cfg51->save_file("t/cfg.51.out");

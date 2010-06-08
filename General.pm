@@ -32,7 +32,7 @@ use Carp::Heavy;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = 2.48;
+$Config::General::VERSION = 2.49;
 
 use vars  qw(@ISA @EXPORT_OK);
 use base qw(Exporter);
@@ -1084,7 +1084,7 @@ sub _parse_value {
   }
 
   # are there any escaped characters left? put them out as is
-  $value =~ s/\\([\$\\\"])/$1/g;
+  $value =~ s/\\([\$\\\"#])/$1/g;
 
   return $value;
 }
@@ -2532,7 +2532,7 @@ Thomas Linden <tlinden |AT| cpan.org>
 
 =head1 VERSION
 
-2.48
+2.49
 
 =cut
 
