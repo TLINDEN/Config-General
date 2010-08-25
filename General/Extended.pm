@@ -1,7 +1,7 @@
 #
 # Config::General::Extended - special Class based on Config::General
 #
-# Copyright (c) 2000-2008 Thomas Linden <tlinden |AT| cpan.org>.
+# Copyright (c) 2000-2010 Thomas Linden <tlinden |AT| cpan.org>.
 # All Rights Reserved. Std. disclaimer applies.
 # Artistic License, same as perl itself. Have fun.
 #
@@ -23,7 +23,7 @@ use vars qw(@ISA @EXPORT);
 use strict;
 
 
-$Config::General::Extended::VERSION = "2.04";
+$Config::General::Extended::VERSION = "2.05";
 
 
 sub new {
@@ -31,6 +31,51 @@ sub new {
        ."Use Config::General::new() instead and set the -ExtendedAccess flag.\n";
 }
 
+
+sub getbypath {
+  my ($this, $path) = @_;
+  my $xconfig = $this->{config};
+  $path =~ s#^/##;
+  $path =~ s#/$##;
+  my @pathlist = split /\//, $path;
+  my $index;
+  foreach my $element (@pathlist) {
+    if($element =~ /^([^\[]*)\[(\d+)\]$/) {
+      $element = $1;
+      $index   = $2;
+    }
+    else {
+      $index = undef;
+    }
+
+    if(ref($xconfig) eq "ARRAY") {
+      return {};
+    }
+    elsif (! exists $xconfig->{$element}) {
+      return {};
+    }
+
+    if(ref($xconfig->{$element}) eq "ARRAY") {
+      if(! defined($index) ) {
+        #croak "$element is an array but you didn't specify an index to access it!\n";
+        $xconfig = $xconfig->{$element};
+      }
+      else {
+        if(exists $xconfig->{$element}->[$index]) {
+          $xconfig = $xconfig->{$element}->[$index];
+        }
+        else {
+          croak "$element doesn't have an element with index $index!\n";
+        }
+      }
+    }
+    else {
+      $xconfig = $xconfig->{$element};
+    }
+  }
+
+  return $xconfig;
+}
 
 sub obj {
   #
@@ -576,7 +621,7 @@ values under the given key will be overwritten.
 
 =head1 COPYRIGHT
 
-Copyright (c) 2000-2008 Thomas Linden
+Copyright (c) 2000-2010 Thomas Linden
 
 This library is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
@@ -593,7 +638,7 @@ Thomas Linden <tlinden |AT| cpan.org>
 
 =head1 VERSION
 
-2.04
+2.05
 
 =cut
 
