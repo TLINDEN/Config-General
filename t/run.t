@@ -8,7 +8,7 @@
 
 
 use Data::Dumper;
-use Test::More tests => 64;
+use Test::More tests => 67;
 #use Test::More qw(no_plan);
 
 # ahem, we deliver the test code with a local copy of
@@ -16,7 +16,10 @@ use Test::More tests => 64;
 # hashes without dependency to Tie::IxHash.
 use lib qw(t);
 use Tie::IxHash;
-
+my @WARNINGS_FOUND;
+BEGIN {
+    $SIG{__WARN__} = sub { diag( "WARN: ", join( '', @_ ) ); push @WARNINGS_FOUND, @_ };
+}
 
 ### 1
 BEGIN { use_ok "Config::General"};
@@ -37,8 +40,6 @@ foreach my $num (2..7) {
   };
   ok(!$@, "$fst");
 }
-
-
 
 ### 8
 my $conf = new Config::General("t/cfg.8");
@@ -435,12 +436,19 @@ is_deeply( \%C36, { bit => { one => { honk=>'bonk' },
 
 
 ### Include once
-diag "\nPlease ignore the following message about IncludeAgain";
-my $conf37 = Config::General->new( "t/dual-include.conf" );
-my %C37 = $conf37->getall;
-is_deeply( \%C37, { bit => { one => { honk=>'bonk' }, 
-                           two => {} 
-                }        }, "Included once-only" );
+{
+    my @expected_warning;
+    local $SIG{__WARN__} = sub { push @expected_warning, @_};
+
+    my $conf37 = Config::General->new( "t/dual-include.conf" );
+    my %C37 = $conf37->getall;
+    is_deeply( \%C37, { bit => { one => { honk=>'bonk' }, 
+				 two => {} 
+			}        }, "Included once-only" );
+
+    is( @expected_warning, 1, "1 Expected warning" );
+    like( $expected_warning[0], qr/File .* already loaded.  Use -IncludeAgain to load it again./ms, "Warns about a file already being loaded" );
+}
 
 
 ### apache-style Include 
@@ -714,3 +722,6 @@ $cfg52->save_file("t/cfg.52.out");
 $cfg52 = new Config::General( -ConfigFile => "t/cfg.52.out", -ForceArray => 1);
 my %hash52new = $cfg52->getall();
 is_deeply(\%hash52new, \%hash52, "check -ForceArray single value arrays during save()");
+
+# Make sure no warnings were seen during the test.
+ok( !@WARNINGS_FOUND, "No unexpected warnings seen" );
