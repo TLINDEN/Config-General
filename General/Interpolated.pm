@@ -124,7 +124,7 @@ sub _interpolate_hash {
   my ($this, $config) = @_;
 
   # bugfix rt.cpan.org#46184, moved code from _interpolate() to here.
-  if ($this->{InterPolateEnv} && defined(%ENV)) {
+  if ($this->{InterPolateEnv}) {
     # may lead to vulnerabilities, by default flag turned off
     for my $key (keys %ENV){
       $config->{__stack}->{$key}=$ENV{$key};
