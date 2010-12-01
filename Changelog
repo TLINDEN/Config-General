@@ -1,3 +1,18 @@
+ 2.50
+	- fixed rt.cpan.org#63487 documentation error.
+
+	- fixed rt.cpan.org#61302, now croak if the config file
+	  parameter is a directory and directory include is not
+	  turned on.
+
+	- fixed rt.cpan.org#60429 META.yml typo
+
+	- added new option -AllowSingleQuoteInterpolation, which
+	  turns on interpolation for variables inside single quotes.
+
+	- added test case for the new option
+
+
  2.49
 	- fixed rt.cpan.org#56532, '#' missed during fix for
 	  56370 in 2.45.

@@ -32,7 +32,7 @@ use Carp::Heavy;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = 2.49;
+$Config::General::VERSION = "2.50";
 
 use vars  qw(@ISA @EXPORT_OK);
 use base qw(Exporter);
@@ -87,7 +87,8 @@ sub new {
 	      files                 => {},      # which files we have read, if any
 	      UTF8                  => 0,
 	      SaveSorted            => 0,
-              ForceArray            => 0        # force single value array if value enclosed in []
+              ForceArray            => 0,       # force single value array if value enclosed in []
+              AllowSingleQuoteInterpolation => 0
 	     };
 
   # create the class instance
@@ -494,6 +495,9 @@ sub _open {
         warn "File $file already loaded.  Use -IncludeAgain to load it again.\n";
       }
     }
+  }
+  elsif (-d $configfile) {
+    croak "Config::General: config file argument is a directory, expecting a file!\n";
   }
   elsif (-e _) {
     if (exists $this->{files}->{$configfile} and not $this->{IncludeAgain}) {
@@ -1742,6 +1746,11 @@ configs.
 
 This implies B<-InterPolateVars>.
 
+=item B<-AllowSingleQuoteInterpolation>
+
+By default variables inside single quotes will not be interpolated. If
+you turn on this option, they will be interpolated as well.
+
 =item B<-ExtendedAccess>
 
 If set to a true value, you can use object oriented (extended) methods to
@@ -1835,7 +1844,7 @@ you will get such an error message from the parser:
 This is caused by the fact that the config chunk below will be
 internally converted to:
 
- <Directory><Directory />
+ <Directory></Directory>
    Index index.awk
  </Directory>
 
@@ -2532,7 +2541,7 @@ Thomas Linden <tlinden |AT| cpan.org>
 
 =head1 VERSION
 
-2.49
+2.50
 
 =cut
 

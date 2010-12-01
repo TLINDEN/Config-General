@@ -8,7 +8,7 @@
 
 
 use Data::Dumper;
-use Test::More tests => 67;
+use Test::More tests => 68;
 #use Test::More qw(no_plan);
 
 # ahem, we deliver the test code with a local copy of
@@ -723,5 +723,12 @@ $cfg52 = new Config::General( -ConfigFile => "t/cfg.52.out", -ForceArray => 1);
 my %hash52new = $cfg52->getall();
 is_deeply(\%hash52new, \%hash52, "check -ForceArray single value arrays during save()");
 
+my $cfg53 = new Config::General(-AllowSingleQuoteInterpolation => 1, -String => "got = 1\nhave = '\$got'", -InterPolateVars => 1 );
+my %hash53 = $cfg53->getall();
+is($hash53{have}, "'1'", "check -AllowSingleQuoteInterpolation");
+
+
 # Make sure no warnings were seen during the test.
 ok( !@WARNINGS_FOUND, "No unexpected warnings seen" );
+
+
