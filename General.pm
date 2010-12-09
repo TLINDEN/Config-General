@@ -1881,7 +1881,7 @@ The following options will be set:
  IncludeDirectories = 1
  IncludeGlob        = 1
  SlashIsDirectory   = 1
- SplitPolicy        = 'equalsign'
+ SplitPolicy        = 'whitespace'
  CComments          = 0
 
 Take a look into the particular documentation sections what
