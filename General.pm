@@ -32,7 +32,7 @@ use Carp::Heavy;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = "2.50";
+$Config::General::VERSION = "2.51";
 
 use vars  qw(@ISA @EXPORT_OK);
 use base qw(Exporter);
@@ -2606,7 +2606,7 @@ Thomas Linden <tlinden |AT| cpan.org>
 
 =head1 VERSION
 
-2.50
+2.51
 
 =cut
 
