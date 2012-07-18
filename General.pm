@@ -5,7 +5,7 @@
 #          config values from a given file and
 #          return it as hash structure
 #
-# Copyright (c) 2000-2010 Thomas Linden <tlinden |AT| cpan.org>.
+# Copyright (c) 2000-2012 Thomas Linden <tlinden |AT| cpan.org>.
 # All Rights Reserved. Std. disclaimer applies.
 # Artistic License, same as perl itself. Have fun.
 #
@@ -88,7 +88,11 @@ sub new {
 	      UTF8                  => 0,
 	      SaveSorted            => 0,
               ForceArray            => 0,       # force single value array if value enclosed in []
-              AllowSingleQuoteInterpolation => 0
+              AllowSingleQuoteInterpolation => 0,
+              NoEscape              => 0,
+              NormalizeBlock        => 0,
+              NormalizeOption       => 0,
+              NormalizeValue        => 0,
 	     };
 
   # create the class instance
@@ -791,6 +795,10 @@ sub _parse {
       }
     }
 
+    if($this->{NormalizeOption}) {
+      $option = $this->{NormalizeOption}($option);
+    }
+
     if ($value && $value =~ /^"/ && $value =~ /"$/) {
       $value =~ s/^"//;                                    # remove leading and trailing "
       $value =~ s/"$//;
@@ -809,6 +817,16 @@ sub _parse {
 	    $blockname = $3 || $4;
 	  }
 	}
+        if($this->{NormalizeBlock}) {
+          $block = $this->{NormalizeBlock}($block);
+	  if (defined $blockname) {
+            $blockname = $this->{NormalizeBlock}($blockname);
+            if($blockname eq "") {
+              # if, after normalization no blockname is left, remove it
+              $blockname = undef;
+            }
+	  }
+        }
 	if ($this->{InterPolateVars}) {
 	  # interpolate block(name), add "<" and ">" to the key, because
 	  # it is sure that such keys does not exist otherwise.
@@ -869,7 +887,7 @@ sub _parse {
 	  }
 	}
 	else {
-          if($this->{ForceArray} && $value =~ /^\[\s*(.+?)\s*\]$/) {
+          if($this->{ForceArray} && defined $value && $value =~ /^\[\s*(.+?)\s*\]$/) {
             # force single value array entry
             push @{$config->{$option}}, $this->_parse_value($config, $option, $1);
           }
@@ -949,7 +967,6 @@ sub _parse {
 	    if ($this->{InterPolateVars}) {
 	      # inherit current __stack to new block
 	      $tmphash->{__stack} = $this->_copy($config->{__stack});
-	      #$tmphash->{__stack} = $config->{$block}->{__stack};
 	    }
 
 	    $config->{$block}->{$blockname} = $this->_parse($tmphash, \@newcontent);
@@ -1057,6 +1074,10 @@ sub _parse_value {
     return $value;
   }
 
+  if($this->{NormalizeValue}) {
+    $value = $this->{NormalizeValue}($value);
+  }
+
   if ($this->{InterPolateVars}) {
     $value = $this->_interpolate($config, $option, $value);
   }
@@ -1087,8 +1108,10 @@ sub _parse_value {
     }
   }
 
-  # are there any escaped characters left? put them out as is
-  $value =~ s/\\([\$\\\"#])/$1/g;
+  if (!$this->{NoEscape}) {
+    # are there any escaped characters left? put them out as is
+    $value =~ s/\\([\$\\\"#])/$1/g;
+  }
 
   return $value;
 }
@@ -1277,8 +1300,10 @@ sub _write_scalar {
   else {
     # a simple stupid scalar entry
 
-    # re-escape contained $ or # or \ chars
-    $line =~ s/([#\$\\\"])/\\$1/g;
+    if (!$this->{NoEscape}) {
+      # re-escape contained $ or # or \ chars
+      $line =~ s/([#\$\\\"])/\\$1/g;
+    }
 
     # bugfix rt.cpan.org#42287
     if ($line =~ /^\s/ or $line =~ /\s$/) {
@@ -1306,6 +1331,20 @@ sub _write_hash {
     $entry = q(") . $entry . q(");
   }
 
+  # check if the next level key points to a hash and is the only one
+  # in this case put out a named block
+  # fixes rt.77667
+  my $num = scalar keys %{$line};
+  if($num == 1) {
+    my $key = (keys %{$line})[0];
+    if(ref($line->{$key}) eq 'HASH') {
+      $config_string .= $indent . qq(<$entry $key>\n);
+      $config_string .= $this->_store($level + 1, $line->{$key});
+      $config_string .= $indent . qq(</) . $entry . ">\n";
+      return $config_string;
+    }
+  }
+ 
   $config_string .= $indent . q(<) . $entry . ">\n";
   $config_string .= $this->_store($level + 1, $line);
   $config_string .= $indent . q(</) . $entry . ">\n";
@@ -1899,6 +1938,32 @@ not work properly with older versions of Perl.
 
 If you want to save configs in a sorted manner, turn this
 parameter on. It is not enabled by default.
+
+=item B<-NoEscape>
+
+If you want to use the data ( scalar or final leaf ) without escaping special charatecter, turn this
+parameter on. It is not enabled by default.
+
+=item B<-NormalizeBlock>
+
+Takes a subroutine reference as parameter and gets the current
+block or blockname passed as parameter and is expected to return
+it in some altered way as a scalar string. The sub will be called
+before anything else will be done by the module itself (e.g. interpolation).
+
+Example:
+
+ -NormalizeBlock => sub { my $x = shift; $x =~ s/\s*$//; $x; }
+
+This removes trailing whitespaces of block names.
+
+=item B<-NormalizeOption>
+
+Same as B<-NormalizeBlock> but applied on options only.
+
+=item B<-NormalizeValue>
+
+Same as B<-NormalizeBlock> but applied on values only.
 
 =back
 
@@ -2512,7 +2577,7 @@ I recommend you to read the following documents, which are supplied with Perl:
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (c) 2000-2010 Thomas Linden
+Copyright (c) 2000-2012 Thomas Linden
 
 This library is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.

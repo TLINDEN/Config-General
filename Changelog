@@ -1,3 +1,18 @@
+ 2.51   - fixed rt.cpan.org#77667 which resulted in invalid configs
+          written to file when using save_file() and a named block,
+          whose 2nd part starts with a /.
+
+        - fixed rt.cpan.org#64169 by applying patch by Dulaunoy Fabrice.
+          adds -NoEscape switch which turns off escaping of anything.
+
+        - implemented suggestion of rt.cpan.org#67564 by adding 3 new
+          parameters: -NormalizeOption, -NormalizeBlock and -NormalizeValue,
+          which take a subroutine reference and change the block,
+          option or value accordingly.
+        
+        - fixed rt.cpan.org#65860+76953 undefined value error.
+
+
  2.50
 	- fixed rt.cpan.org#63487 documentation error.
 

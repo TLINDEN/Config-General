@@ -8,7 +8,7 @@
 
 
 use Data::Dumper;
-use Test::More tests => 68;
+use Test::More tests => 69;
 #use Test::More qw(no_plan);
 
 # ahem, we deliver the test code with a local copy of
@@ -731,4 +731,7 @@ is($hash53{have}, "'1'", "check -AllowSingleQuoteInterpolation");
 # Make sure no warnings were seen during the test.
 ok( !@WARNINGS_FOUND, "No unexpected warnings seen" );
 
-
+# check if disabling escape chars does work
+my $cfg54 = new Config::General(-NoEscape => 1, -String => qq(val = \\\$notavar:\\blah\n));
+my %hash54 = $cfg54->getall();
+is($hash54{val}, qq(\\\$notavar:\\blah), "check -NoEscape");
