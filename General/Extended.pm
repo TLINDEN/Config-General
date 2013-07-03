@@ -1,7 +1,7 @@
 #
 # Config::General::Extended - special Class based on Config::General
 #
-# Copyright (c) 2000-2012 Thomas Linden <tlinden |AT| cpan.org>.
+# Copyright (c) 2000-2013 Thomas Linden <tlinden |AT| cpan.org>.
 # All Rights Reserved. Std. disclaimer applies.
 # Artistic License, same as perl itself. Have fun.
 #
@@ -23,7 +23,7 @@ use vars qw(@ISA @EXPORT);
 use strict;
 
 
-$Config::General::Extended::VERSION = "2.05";
+$Config::General::Extended::VERSION = "2.06";
 
 
 sub new {
@@ -301,21 +301,6 @@ sub delete {
 }
 
 
-#
-# removed, use save() of General.pm now
-# sub save {
-#  #
-#  # save the config back to disk
-#  #
-#  my($this,$file) = @_;
-#  my $fh = new FileHandle;
-#
-#  if (!$file) {
-#    $file = $this->{configfile};
-#  }
-#
-#  $this->save_file($file);
-# }
 
 
 sub configfile {
@@ -386,7 +371,7 @@ Config::General::Extended - Extended access to Config files
 
  use Config::General;
 
- $conf = new Config::General(
+ $conf = Config::General->new(
     -ConfigFile     => 'configfile',
     -ExtendedAccess => 1
  );
@@ -456,7 +441,7 @@ object will be returned. If you run the following on the above config:
 
 Then $obj will be empty, just like if you have had run this:
 
- $obj = new Config::General::Extended( () );
+ $obj = Config::General::Extended->new( () );
 
 Read operations on this empty object will return nothing or even fail.
 But you can use an empty object for I<creating> a new config using write
@@ -562,7 +547,7 @@ This method returns just true if the given key exists in the config.
 =item keys('key')
 
 Returns an array of the keys under the specified "key". If you use the example
-config above you yould do that:
+config above you could do that:
 
  print Dumper($conf->keys("individual");
  $VAR1 = [ "martin", "joseph" ];
@@ -583,7 +568,7 @@ otherwise undef will be returned.
 
 =head1 AUTOLOAD METHODS
 
-Another usefull feature is implemented in this class using the B<AUTOLOAD> feature
+Another useful feature is implemented in this class using the B<AUTOLOAD> feature
 of perl. If you know the keynames of a block within your config, you can access to
 the values of each individual key using the method notation. See the following example
 and you will get it:
@@ -598,7 +583,7 @@ We assume the following config:
 
 Now we read it in and process it:
 
- my $conf = new Config::General::Extended("configfile");
+ my $conf = Config::General::Extended->new("configfile");
  my $person = $conf->obj("person");
  print $person->prename . " " . $person->name . " is " . $person->age . " years old\n";
 
@@ -621,7 +606,7 @@ values under the given key will be overwritten.
 
 =head1 COPYRIGHT
 
-Copyright (c) 2000-2012 Thomas Linden
+Copyright (c) 2000-2013 Thomas Linden
 
 This library is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
@@ -638,7 +623,7 @@ Thomas Linden <tlinden |AT| cpan.org>
 
 =head1 VERSION
 
-2.05
+2.06
 
 =cut
 

@@ -8,7 +8,7 @@
 
 
 use Data::Dumper;
-use Test::More tests => 69;
+use Test::More tests => 70;
 #use Test::More qw(no_plan);
 
 # ahem, we deliver the test code with a local copy of
@@ -49,6 +49,8 @@ my $copy = new Config::General("t/cfg.out");
 my %copyhash = $copy->getall;
 is_deeply(\%hash, \%copyhash, "Writing Config Hash to disk and compare with original");
 
+# 8a
+like($copyhash{nocomment}, qr/this should appear/, "C-comments not processed in here-doc");
 
 ### 9
 $conf = new Config::General(

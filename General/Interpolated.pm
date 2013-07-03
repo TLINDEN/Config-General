@@ -2,13 +2,13 @@
 # Config::General::Interpolated - special Class based on Config::General
 #
 # Copyright (c) 2001 by Wei-Hon Chen <plasmaball@pchome.com.tw>.
-# Copyright (c) 2000-2012 by Thomas Linden <tlinden |AT| cpan.org>.
+# Copyright (c) 2000-2013 by Thomas Linden <tlinden |AT| cpan.org>.
 # All Rights Reserved. Std. disclaimer applies.
 # Artistic License, same as perl itself. Have fun.
 #
 
 package Config::General::Interpolated;
-$Config::General::Interpolated::VERSION = "2.14";
+$Config::General::Interpolated::VERSION = "2.15";
 
 use strict;
 use Carp;
@@ -48,8 +48,7 @@ sub _set_regex {
 		 \$		# dollar sign
 		 (\{)?		# $2: optional opening curly
 		 ([a-zA-Z0-9_\-\.:\+,]+) # $3: capturing variable name (fix of #33447)
-		 (
-		 ?(2)		# $4: if there's the opening curly...
+		 (?(2)		# $4: if there's the opening curly...
 		 \}		#     ... match closing curly
 		)
 	       }x;
@@ -255,7 +254,7 @@ Config::General::Interpolated - Parse variables within Config files
 =head1 SYNOPSIS
 
  use Config::General;
- $conf = new Config::General(
+ $conf = Config::General->new(
     -ConfigFile      => 'configfile',
     -InterPolateVars => 1
  );
@@ -341,7 +340,7 @@ L<Config::General>
 =head1 COPYRIGHT
 
 Copyright 2001 by Wei-Hon Chen E<lt>plasmaball@pchome.com.twE<gt>.
-Copyright 2002-2012 by Thomas Linden <tlinden |AT| cpan.org>.
+Copyright 2002-2013 by Thomas Linden <tlinden |AT| cpan.org>.
 
 This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
@@ -350,7 +349,7 @@ See L<http://www.perl.com/perl/misc/Artistic.html>
 
 =head1 VERSION
 
-2.14
+2.15
 
 =cut
 

@@ -1,3 +1,26 @@
+ 2.52   - applied pod patch rt.cpan.org#79603
+
+        - fixed rt.cpan.org#80006, it tolerates now whitespaces
+	  after the block closing >
+
+	- added -Plug parameter, which introduces plugin closures.
+	  idea from rt.cpan.org#79694.
+	  Currently available hooks are:
+ 	  pre_open, pre_read, post_read, pre_parse_value, post_parse_value
+
+	- applied patch by Ville Skyttä, spelling fixes.
+
+	- fixed rt.cpan.org#85080, more spelling fixes.
+
+	- applied patch rt.cpan.org#85132, which fixes a deprecation
+	  warning in perl 5.18 and above. Fixes #85668 as well.
+
+	- applied patch rt.cpan.org#85538, c-style comments
+	  are ignored inside here-docs.
+
+	- fixed rt.cpan.org#82637, don't use indirect object syntax
+	  in pod and code.
+
  2.51   - fixed rt.cpan.org#77667 which resulted in invalid configs
           written to file when using save_file() and a named block,
           whose 2nd part starts with a /.
@@ -81,7 +104,7 @@
 	  configuration variable EOFseparator, which contains
 	  a 256 bit SHA checksum of the date I fixed the bug.
 	  This will prevent future conflicts hopefully. In addition
-	  it makes it possible to make it customizable, if neccessary,
+	  it makes it possible to make it customizable, if necessary,
 	  in a future release.
 
 	- fixed rt.cpan.org#42721, return undef for empty values
@@ -583,7 +606,7 @@
 	   know, perl hashes doesn't preserve the order. So,
 	   in our case the module sometimes was unable to
 	   resolve variablenames, because they were stored
-	   in a different location as it occured in the config.
+	   in a different location as it occurred in the config.
 	   The change is, that Config::General now calls
 	   ::Interpolate.pm (new sub: _interpolate()) itself
 	   directly on a per-key/value pair basis. The internal
@@ -618,7 +641,7 @@
 	   same config as their parents.
 
  2.08    - added option -StrictVars, which causes Interpolate.pm to
-	   ignore undefined variables and replaces such occurences
+	   ignore undefined variables and replaces such occurrences
 	   with the emppty string.
 
 	 - applied patch by Stefan Moser <sm@open.ch>, which fixes
@@ -673,7 +696,7 @@
 	   -ConfigFile parameter. This makes it possible to use locking.
 
  2.05    - fixed bug in ::Extended. It exported for some weird
-           reason I cant remember all of its methods. This included
+           reason I can't remember all of its methods. This included
 	   keys() exists() and delete(), which are perl internals.
 	   If one used keys() on a normal hash, then the ::Extended
 	   own keys() were used instead of perls own one. I removed
@@ -898,7 +921,7 @@
 
  1.24:   - AllowMultiOptions printed out the value and not the
            option itself, if more than one of this particular
-           option occured.
+           option occurred.
          - added -UseApacheInclude feature, contributed by
            Thomas Klausner <domm@zsi.at>
          - fixed bug with multiple options stuff, which did not
