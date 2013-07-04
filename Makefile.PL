@@ -20,6 +20,11 @@ WriteMakefile(
 				'File::Spec::Functions' => 0,
 				'File::Glob'            => 0
 			  },
+	'META_MERGE' => {
+			resources => {
+			repository => 'http://dev.catalyst.perl.org/repos/Config-General/trunk/',
+			},
+	},
 	($ExtUtils::MakeMaker::VERSION ge '6.31'? 
 	('LICENSE'		=> 'perl', ) : ()),
 );
