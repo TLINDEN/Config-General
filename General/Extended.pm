@@ -1,7 +1,7 @@
 #
 # Config::General::Extended - special Class based on Config::General
 #
-# Copyright (c) 2000-2013 Thomas Linden <tlinden |AT| cpan.org>.
+# Copyright (c) 2000-2014 Thomas Linden <tlinden |AT| cpan.org>.
 # All Rights Reserved. Std. disclaimer applies.
 # Artistic License, same as perl itself. Have fun.
 #
@@ -23,7 +23,7 @@ use vars qw(@ISA @EXPORT);
 use strict;
 
 
-$Config::General::Extended::VERSION = "2.06";
+$Config::General::Extended::VERSION = "2.07";
 
 
 sub new {
@@ -314,7 +314,17 @@ sub configfile {
   return $this->{configfile};
 }
 
-
+sub find {
+  my $this = shift;
+  my $key = shift;
+  return undef unless $this->exists($key);
+  if (@_) {
+    return $this->obj($key)->find(@_);
+  }
+  else {
+    return $this->obj($key);
+  }
+}
 
 sub AUTOLOAD {
   #
@@ -557,11 +567,35 @@ If no key name was supplied, then the keys of the object itself will be returned
 You can use this method in B<foreach> loops as seen in an example above(obj() ).
 
 
-=item delete ('key')
+=item delete('key')
 
 This method removes the given key and all associated data from the internal
 hash structure. If 'key' contained data, then this data will be returned,
 otherwise undef will be returned.
+
+=item find(@list)
+
+Given a list of nodes, ->find will search for a tree that branches in
+just this way, returning the Config::General::Extended object it finds
+at the bottom if it exists.  You can also search partway down the tree
+and ->find should return where you left off.
+
+For example, given the values B<find (qw (A B C))> and the following
+tree (</end> tags ommitted for brevity):
+
+ <A>
+        <FOO>
+                ...
+        <B>
+                <BAZ>
+                        ...
+                <C>
+                        BAR = shoo
+
+B<find()> will find the object at I<C> with the value BAR = shoo and
+return it.
+
+
 
 =back
 
@@ -606,7 +640,7 @@ values under the given key will be overwritten.
 
 =head1 COPYRIGHT
 
-Copyright (c) 2000-2013 Thomas Linden
+Copyright (c) 2000-2014 Thomas Linden
 
 This library is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
@@ -623,7 +657,7 @@ Thomas Linden <tlinden |AT| cpan.org>
 
 =head1 VERSION
 
-2.06
+2.07
 
 =cut
 

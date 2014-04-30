@@ -5,7 +5,7 @@
 #          config values from a given file and
 #          return it as hash structure
 #
-# Copyright (c) 2000-2013 Thomas Linden <tlinden |AT| cpan.org>.
+# Copyright (c) 2000-2014 Thomas Linden <tlinden |AT| cpan.org>.
 # All Rights Reserved. Std. disclaimer applies.
 # Artistic License, same as perl itself. Have fun.
 #
@@ -32,7 +32,7 @@ use Carp::Heavy;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = "2.52";
+$Config::General::VERSION = "2.53";
 
 use vars  qw(@ISA @EXPORT_OK);
 use base qw(Exporter);
@@ -727,7 +727,10 @@ sub _read {
          }
       }
       else {
-        if (/^\s*<<include\s+(.+?)>>\s*$/i) {
+	if (/^\s*<<include\s+(["'])(.+?)>>\\s*$/i) {
+	  $incl_file = $2;
+	}
+        elsif (/^\s*<<include\s+(.+?)>>\s*$/i) {
           $incl_file = $1;
         }
       }
@@ -1814,7 +1817,7 @@ you turn on this option, they will be interpolated as well.
 =item B<-ExtendedAccess>
 
 If set to a true value, you can use object oriented (extended) methods to
-access the parsed config. See L<Config::General::Extended> for more informations.
+access the parsed config. See L<Config::General::Extended> for more information.
 
 =item B<-StrictObjects>
 
@@ -2709,11 +2712,11 @@ I recommend you to read the following documents, which are supplied with Perl:
  perllol                        Perl data structures: arrays of arrays
 
  Config::General::Extended      Object oriented interface to parsed configs
- Config::General::Interpolated  Allows to use variables inside config files
+ Config::General::Interpolated  Allows one to use variables inside config files
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (c) 2000-2013 Thomas Linden
+Copyright (c) 2000-2014 Thomas Linden
 
 This library is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
@@ -2742,7 +2745,7 @@ Thomas Linden <tlinden |AT| cpan.org>
 
 =head1 VERSION
 
-2.52
+2.53
 
 =cut
 

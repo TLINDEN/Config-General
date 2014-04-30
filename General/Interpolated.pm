@@ -2,7 +2,7 @@
 # Config::General::Interpolated - special Class based on Config::General
 #
 # Copyright (c) 2001 by Wei-Hon Chen <plasmaball@pchome.com.tw>.
-# Copyright (c) 2000-2013 by Thomas Linden <tlinden |AT| cpan.org>.
+# Copyright (c) 2000-2014 by Thomas Linden <tlinden |AT| cpan.org>.
 # All Rights Reserved. Std. disclaimer applies.
 # Artistic License, same as perl itself. Have fun.
 #
@@ -340,7 +340,7 @@ L<Config::General>
 =head1 COPYRIGHT
 
 Copyright 2001 by Wei-Hon Chen E<lt>plasmaball@pchome.com.twE<gt>.
-Copyright 2002-2013 by Thomas Linden <tlinden |AT| cpan.org>.
+Copyright 2002-2014 by Thomas Linden <tlinden |AT| cpan.org>.
 
 This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.

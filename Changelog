@@ -1,4 +1,14 @@
- 2.52   - applied pod patch rt.cpan.org#79603
+2.53    - applied patch rt.cpan.org#68153, which adds a find() method to
+	  Config::General::Extended.
+
+	- fixed rt.cpan.org#79869 (in fact it has been fixed in 2.52
+	  but I forgot to mention it here).
+
+	- applied spelling fixes rt.cpan.org 87072+87080.
+
+	- fixed rt.cpan.org#89379
+
+2.52    - applied pod patch rt.cpan.org#79603
 
         - fixed rt.cpan.org#80006, it tolerates now whitespaces
 	  after the block closing >
@@ -32,7 +42,7 @@
           parameters: -NormalizeOption, -NormalizeBlock and -NormalizeValue,
           which take a subroutine reference and change the block,
           option or value accordingly.
-        
+
         - fixed rt.cpan.org#65860+76953 undefined value error.
 
 
