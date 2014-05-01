@@ -32,7 +32,7 @@ use Carp::Heavy;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = "2.53";
+$Config::General::VERSION = "2.54";
 
 use vars  qw(@ISA @EXPORT_OK);
 use base qw(Exporter);
@@ -632,12 +632,12 @@ sub _read {
     # Remove comments and empty lines
     s/(?<!\\)#.*$//; # .+ => .* bugfix rt.cpan.org#44600
     next if /^\s*#/;
-    next if /^\s*$/;
+    #next if /^\s*$/;
 
 
     # look for multiline option, indicated by a trailing backslash
     if (/(?<!\\)\\$/) {
-      chop;
+      chop; # remove trailing backslash
       s/^\s*//;
       $longline .= $_;
       next;
@@ -706,6 +706,9 @@ sub _read {
       next;
     }
     else {
+      # ignore empty lines
+      next if /^\s*$/;
+
       # look for include statement(s)
       my $incl_file;
       my $path = '';
@@ -2745,7 +2748,7 @@ Thomas Linden <tlinden |AT| cpan.org>
 
 =head1 VERSION
 
-2.53
+2.54
 
 =cut
 

@@ -8,7 +8,7 @@
 
 
 use Data::Dumper;
-use Test::More tests => 70;
+use Test::More tests => 71;
 #use Test::More qw(no_plan);
 
 # ahem, we deliver the test code with a local copy of
@@ -737,3 +737,8 @@ ok( !@WARNINGS_FOUND, "No unexpected warnings seen" );
 my $cfg54 = new Config::General(-NoEscape => 1, -String => qq(val = \\\$notavar:\\blah\n));
 my %hash54 = $cfg54->getall();
 is($hash54{val}, qq(\\\$notavar:\\blah), "check -NoEscape");
+
+# check for line continuation followed by empty line (rt.cpan.org#39814)
+my $cfg55 = new Config::General( -ConfigFile => "t/cfg.55" );
+my %hash55 = $cfg55->getall();
+is($hash55{b}, "nochop", "check continuation followed by empty line");

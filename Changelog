@@ -1,3 +1,7 @@
+2.54	- fixed rt.cpan.org#39814. changed the order of pre-processing
+	  in _read(): 1) remove comments, 2) check for continuation,
+	  3) remove empty lines.
+
 2.53    - applied patch rt.cpan.org#68153, which adds a find() method to
 	  Config::General::Extended.
 
