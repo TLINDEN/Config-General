@@ -30,6 +30,7 @@ t/cfg.5
 t/cfg.6
 t/cfg.7
 t/cfg.8
+t/cfg.55
 t/complex/n1.cfg
 t/complex/n2.cfg
 t/complex.cfg
