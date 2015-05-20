@@ -8,7 +8,7 @@
 
 
 use Data::Dumper;
-use Test::More tests => 71;
+use Test::More tests => 72;
 #use Test::More qw(no_plan);
 
 # ahem, we deliver the test code with a local copy of
@@ -742,3 +742,9 @@ is($hash54{val}, qq(\\\$notavar:\\blah), "check -NoEscape");
 my $cfg55 = new Config::General( -ConfigFile => "t/cfg.55" );
 my %hash55 = $cfg55->getall();
 is($hash55{b}, "nochop", "check continuation followed by empty line");
+
+my $cfg56 = Config::General->new();
+eval {
+  $cfg56->save_file("t/56.out", { "new\nline" => 9, "brack<t" => 8 });
+};
+ok($@, "catch special chars in keys");

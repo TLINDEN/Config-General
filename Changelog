@@ -1,3 +1,10 @@
+2.57	- fix rt.cpan.org#104548, dont allow special chars like newline
+	  or < in keys, which leads to faile when saving.
+
+2.56	- fix rt.cpan.org#95325
+
+2.55	- fix rt.cpan.org#95314
+
 2.54	- fixed rt.cpan.org#39814. changed the order of pre-processing
 	  in _read(): 1) remove comments, 2) check for continuation,
 	  3) remove empty lines.
