@@ -8,7 +8,7 @@
 
 
 use Data::Dumper;
-use Test::More tests => 72;
+use Test::More tests => 73;
 #use Test::More qw(no_plan);
 
 # ahem, we deliver the test code with a local copy of
@@ -461,6 +461,19 @@ my %C38 = $conf38->getall;
 is_deeply( \%C38, { bit => { one => { honk=>'bonk' }, 
                            two => { honk=>'bonk' } 
                 }        }, "Apache-style include" );
+
+
+# verify fix for rt#107108, test support for IncludeOptional
+my $conf38n = Config::General->new( -ConfigFile => "t/apache-include-opt.conf",
+				    -IncludeAgain => 1, -IncludeGlob => 1,
+				    -UseApacheInclude => 1 );
+my %C38n = $conf38n->getall;
+is_deeply( \%C38n, { bit => { one => { nink=>'ack' },
+			      two => { honk=>'bonk' }
+			    }        }, "Apache-style IncludeOptional" );
+
+
+
 
 #### 39 verifies bug rt#27225
 # testing variable scope.

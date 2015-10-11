@@ -432,13 +432,13 @@ sub _open {
 
     # applied patch by AlexK fixing rt.cpan.org#41030
     if ( !@include && defined $this->{ConfigPath} ) {
-    	foreach my $dir (@{$this->{ConfigPath}}) {
-		my ($volume, $path, undef) = splitpath($basefile);
-		if ( -d catfile( $dir, $path )  ) {
-	    		push @include, grep { -f $_ } bsd_glob(catfile($dir, $basefile), GLOB_BRACE | GLOB_QUOTE);
-			last;
-		}
-    	}
+      foreach my $dir (@{$this->{ConfigPath}}) {
+	my ($volume, $path, undef) = splitpath($basefile);
+	if ( -d catfile( $dir, $path )  ) {
+	  push @include, grep { -f $_ } bsd_glob(catfile($dir, $basefile), GLOB_BRACE | GLOB_QUOTE);
+	  last;
+	}
+      }
     }
 
     if (@include == 1) {
@@ -722,12 +722,29 @@ sub _read {
 
       # bugfix rt.cpan.org#38635: support quoted filenames
       if ($this->{UseApacheInclude}) {
-         if (/^\s*include\s*(["'])(.*?)(?<!\\)\1$/i) {
-           $incl_file = $2;
-         }
-         elsif (/^\s*include\s+(.+?)\s*$/i) {
-           $incl_file = $1;
-         }
+	my $opt = '';
+	if (/^\s*(include|includeoptional)\s*(["'])(.*?)(?<!\\)\2$/i) {
+	  $incl_file = $3;
+	  $opt = $1;
+	}
+	elsif (/^\s*(include|includeoptional)\s+(.+?)\s*$/i) {
+	  $incl_file = $2;
+	  $opt = $1;
+	}
+	if ($incl_file) {
+	  if ($this->{IncludeGlob} && $opt =~ /opt/i && $incl_file !~ /[*?\[\{\\]/) {
+	    # fix rt#107108
+	    # glob enabled && optional include && file is not already a glob:
+	    # turn it into a singular matching glob, like:
+	    # "file" => "[f][i][l][e]"  and:
+	    # "dir/file" => "dir/[f][i][l][e]"
+	    # which IS a glob but only matches that particular file. if it
+	    # doesn't exist, it will be ignored by _open(), just what
+	    # we'd like to have when using IncludeOptional.
+	    my ($vol,$dirs,$file) = splitpath( $incl_file );
+	    $incl_file = catpath($vol, $dirs, join '', map { "[$_]" } split //, $file);
+	  }
+	}
       }
       else {
 	if (/^\s*<<include\s+(["'])(.+?)>>\\s*$/i) {
