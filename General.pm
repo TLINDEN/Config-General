@@ -32,7 +32,7 @@ use Carp::Heavy;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = "2.58";
+$Config::General::VERSION = "2.59";
 
 use vars  qw(@ISA @EXPORT_OK);
 use base qw(Exporter);
@@ -1600,7 +1600,8 @@ values of the options will B<not> lowercased.
 If set to a true value, the parser will consider "include ..." as valid include
 statement (just like the well known Apache include statement).
 
-
+It also supports apache's "IncludeOptional" statement with the same behavior,
+that is, if the include file doesn't exist no error will be thrown.
 
 =item B<-IncludeRelative>
 
@@ -1630,6 +1631,7 @@ include all matching files (e.g. <<include conf.d/*.conf>>).  Also note that as
 with standard file patterns, * will not match dot-files, so <<include dir/*>>
 is often more desirable than including a directory with B<-IncludeDirectories>.
 
+An include option will not cause a parser error if the glob didn't return anything.
 
 =item B<-IncludeAgain>
 
@@ -2743,7 +2745,7 @@ I recommend you to read the following documents, which are supplied with Perl:
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (c) 2000-2014 Thomas Linden
+Copyright (c) 2000-2015 Thomas Linden
 
 This library is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
@@ -2772,7 +2774,7 @@ Thomas Linden <tlinden |AT| cpan.org>
 
 =head1 VERSION
 
-2.58
+2.59
 
 =cut
 

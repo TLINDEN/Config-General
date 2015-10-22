@@ -80,7 +80,7 @@ UPDATE
 COPYRIGHT
        Config::General
        Config::General::Extended
-           Copyright (c) 2000-2014 by Thomas Linden <tom@daemon.de>
+           Copyright (c) 2000-2015 by Thomas Linden <tom@daemon.de>
 
        Config::General::Interpolated
            Copyright (c) 2001 by Wei-Hon Chen <plasmaball@pchome.com.tw>
@@ -104,4 +104,4 @@ AUTHOR
 
 
 VERSION
-	2.58
+	2.59
