@@ -1894,6 +1894,8 @@ You can use this parameter to specify a custom delimiter to use when saving
 configs to a file or string. You only need to set it if you want to store
 the config back to disk and if you have B<-SplitPolicy> set to 'custom'.
 
+However, this parameter takes precedence over whatever is set for B<-SplitPolicy>.
+
 Be very careful with this parameter.
 
 
