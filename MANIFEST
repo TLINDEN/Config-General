@@ -8,6 +8,8 @@ MANIFEST
 META.yml
 README
 t/apache-include.conf
+t/apache-include-opt.conf
+t/notincluded.conf.not
 t/cfg.16
 t/cfg.16a
 t/cfg.17
