@@ -1,3 +1,5 @@
+next    - fix rt.cpan.org#113671: ignore utf BOM, if any.
+
 2.60    - fix rt.cpan.org#107929: added missing test config.
 
 2.59    - fix rt.cpan.org#107108 by adding support for IncludeOptional.
