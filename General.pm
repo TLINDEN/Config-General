@@ -795,7 +795,7 @@ sub _parse {
     $chunk++;
     $_ =~ s/^\s+//;                                        # strip spaces @ end and begin
     $_ =~ s/\s+$//;
-    $_ =~ s/^\x{ef}\x{bb}\x{bf}//; # strip utf BOM, if any, fix rt.cpan.org#113671
+    ###### bad $_ =~ s/^\x{ef}\x{bb}\x{bf}//; # strip utf BOM, if any, fix rt.cpan.org#113671
 
 #
 # build option value assignment, split current input
