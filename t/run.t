@@ -8,7 +8,7 @@
 
 
 use Data::Dumper;
-use Test::More tests => 73;
+use Test::More tests => 75;
 #use Test::More qw(no_plan);
 
 # ahem, we deliver the test code with a local copy of
@@ -18,7 +18,7 @@ use lib qw(t);
 use Tie::IxHash;
 my @WARNINGS_FOUND;
 BEGIN {
-    $SIG{__WARN__} = sub { diag( "WARN: ", join( '', @_ ) ); push @WARNINGS_FOUND, @_ };
+  $SIG{__WARN__} = sub { diag( "WARN: ", join( '', @_ ) ); push @WARNINGS_FOUND, @_ };
 }
 
 ### 1
@@ -761,3 +761,16 @@ eval {
   $cfg56->save_file("t/56.out", { "new\nline" => 9, "brack<t" => 8 });
 };
 ok($@, "catch special chars in keys");
+
+
+# UTF8[BOM] tests
+my $cfg57 = "t/utf8_bom/foo.cfg";
+my $expected57 = {foo => {"\x{e9}" => "\x{e8}", bar => {"\x{f4}" => "\x{ee}"}}};
+
+for my $bool (0, 1) {
+  my $conf = Config::General->new(-ConfigFile      => $cfg57,
+                                  -IncludeRelative => 1,
+                                  -UTF8            => $bool);
+  my %hash = $conf->getall;
+  is_deeply \%hash, $expected57, "-UTF8 => $bool";
+}

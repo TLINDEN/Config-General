@@ -1,4 +1,5 @@
-next    - fix rt.cpan.org#113671: ignore utf BOM, if any.
+2.61    - fix rt.cpan.org#113671: ignore utf BOM, if any and turn on
+	  UTF8 support if not yet enabled.
 
 2.60    - fix rt.cpan.org#107929: added missing test config.
 

@@ -51,3 +51,5 @@ t/test.rc
 t/Tie/IxHash.pm
 t/Tie/README
 t/cfg.51
+t/utf8_bom/bar.cfg
+t/utf8_bom/foo.cfg
