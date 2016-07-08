@@ -8,7 +8,7 @@
 
 
 use Data::Dumper;
-use Test::More tests => 75;
+use Test::More tests => 78;
 #use Test::More qw(no_plan);
 
 # ahem, we deliver the test code with a local copy of
@@ -773,4 +773,21 @@ for my $bool (0, 1) {
                                   -UTF8            => $bool);
   my %hash = $conf->getall;
   is_deeply \%hash, $expected57, "-UTF8 => $bool";
+}
+
+# IFDEF tests
+my $cfg58 = "t/cfg.58";
+my $expected58 = { level => "debug" };
+my %defs = (
+            scalar => 'TEST',
+            array  => ['TEST'],
+            hash   => {'TEST' => 1}
+          );
+
+foreach my $def (keys %defs) {
+  my $conf = Config::General->new(-ConfigFile         => $cfg58,
+                                  -UseApacheIfDefine => 1,
+                                  -Define             => $defs{$def});
+  my %hash = $conf->getall();
+  is_deeply \%hash, $expected58, "UseApacheIfDefine, -Define => $def";
 }
