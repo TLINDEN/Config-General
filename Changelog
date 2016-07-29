@@ -1,3 +1,8 @@
+2.63  - fix for rt.cpan.org#116340: do only consider a backslash
+        as meta escape char, but not if it appears on it's own,
+        as it happens on windows platforms. Thanks to for finding
+	and tracking it down.
+
 2.62  - fix rt.cpan.org#115326: Callback on 'pre_open' not called
         when glob expands to one include file
 
