@@ -483,7 +483,6 @@ sub _open {
     # include foo/* shouldn't fail if there isn't anything matching)
     # rt.cpan.org#79869: local $this->{IncludeGlob};
     foreach my $file (@include) {
-      print STDERR "CALLING __open($file)\n";
       $this->_open($file);
     }
     return;
