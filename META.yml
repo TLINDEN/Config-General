@@ -1,16 +1,27 @@
-name:         Config-General
-version:      2.58
-version_from: General.pm
-installdirs:  site
+---
+abstract: unknown
+author:
+  - unknown
+build_requires:
+  ExtUtils::MakeMaker: 0
+configure_requires:
+  ExtUtils::MakeMaker: 0
+dynamic_config: 1
+generated_by: 'ExtUtils::MakeMaker version 6.66, CPAN::Meta::Converter version 2.130880'
+license: artistic_2
+meta-spec:
+  url: http://module-build.sourceforge.net/META-spec-v1.4.html
+  version: 1.4
+name: Config-General
+no_index:
+  directory:
+    - t
+    - inc
 requires:
-    File::Glob:                    0
-    File::Spec::Functions:         0
-    FileHandle:                    0
-    IO::File:                      0
+  File::Glob: 0
+  File::Spec::Functions: 0
+  FileHandle: 0
+  IO::File: 0
 resources:
-    bugtracker: https://rt.cpan.org/Public/Dist/Display.html?Name=Config-General
-    homepage:   http://search.cpan.org/dist/Config-General/
-    license:    http://dev.perl.org/licenses/artistic.html
-    repository: http://dev.catalyst.perl.org/repos/Config-General
-distribution_type: module
-generated_by: ExtUtils::MakeMaker version 6.30
+  repository: https://github.com/TLINDEN/Config-General
+version: 2.65
