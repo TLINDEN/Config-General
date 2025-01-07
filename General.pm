@@ -2888,7 +2888,7 @@ Thomas Linden <tlinden |AT| cpan.org>
 
 =head1 VERSION
 
-2.65
+2.66
 
 =cut
 
