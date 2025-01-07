@@ -1,3 +1,7 @@
+2.67  - fix github.com/TLINDEN/Config-General/issues/5:
+	fixing tests (add missing file to dist tarball).
+      - created gitignore file.
+
 2.66  - fix github.com/TLINDEN/Config-General/issues/1:
 	add support to quote values containing whitespace using the
 	new flag -AlwaysQuoteOutput.

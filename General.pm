@@ -32,7 +32,7 @@ use Carp::Heavy;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = "2.66";
+$Config::General::VERSION = "2.67";
 
 use base qw(Exporter);
 our @EXPORT_OK = qw(ParseConfig SaveConfig SaveConfigString);
@@ -2888,7 +2888,7 @@ Thomas Linden <tlinden |AT| cpan.org>
 
 =head1 VERSION
 
-2.66
+2.67
 
 =cut
 
