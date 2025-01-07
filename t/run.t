@@ -796,7 +796,8 @@ foreach my $def (keys %defs) {
 my $cfg59 = "t/cfg.59";
 my $expected59 = qq(foo   "bar baz"
 ); # newline is important here, as we check write output
-my $conf = Config::General->new(-ConfigFile        => $cfg59,
-                                -AlwaysQuoteOutput => 1);
-my $got59 = $conf->save_string();
+my $conf59 = Config::General->new(
+    -ConfigFile        => $cfg59,
+    -AlwaysQuoteOutput => 1);
+my $got59 = $conf59->save_string();
 is_deeply \$expected59, \$got59, "quotes";
