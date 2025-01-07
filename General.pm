@@ -5,7 +5,7 @@
 #          config values from a given file and
 #          return it as hash structure
 #
-# Copyright (c) 2000-2022 Thomas Linden <tlinden |AT| cpan.org>.
+# Copyright (c) 2000-2025 Thomas Linden <tlinden |AT| cpan.org>.
 # All Rights Reserved. Std. disclaimer applies.
 # Licensed under the Artistic License 2.0.
 #
@@ -1425,11 +1425,11 @@ sub _write_scalar {
       $line =~ s/([#\$\\\"])/\\$1/g;
     }
 
-    # bugfix rt.cpan.org#42287
-    if ($line =~ /^\s/ or $line =~ /\s$/) {
-      # need to quote it
+    if ($line =~ /\s/) {
+      # quote lines containing whitespace
       $line = "\"$line\"";
     }
+
     $config_string .= $indent . $entry . $this->{StoreDelimiter} . $line . "\n";
   }
 
@@ -2854,7 +2854,7 @@ I recommend you to read the following documents, which are supplied with Perl:
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (c) 2000-2022 Thomas Linden
+Copyright (c) 2000-2025 Thomas Linden
 
 This library is free software; you can redistribute it and/or
 modify it under the same terms of the Artistic License 2.0.
