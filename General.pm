@@ -32,7 +32,7 @@ use Carp::Heavy;
 use Carp;
 use Exporter;
 
-$Config::General::VERSION = "2.65";
+$Config::General::VERSION = "2.66";
 
 use base qw(Exporter);
 our @EXPORT_OK = qw(ParseConfig SaveConfig SaveConfigString);
@@ -96,7 +96,8 @@ sub new {
               NormalizeValue        => 0,
               Plug                  => {},
               UseApacheIfDefine     => 0,
-              Define                => {}
+              Define                => {},
+              AlwaysQuoteOutput     => 0
              };
 
   # create the class instance
@@ -1424,7 +1425,7 @@ sub _write_scalar {
       $line =~ s/([#\$\\\"])/\\$1/g;
     }
 
-    if ($line =~ /\s/) {
+    if ($line =~ /^\s/ || $line =~ /\s$/ || $this->{AlwaysQuoteOutput}) {
       # quote lines containing whitespace
       $line = "\"$line\"";
     }
@@ -2118,6 +2119,11 @@ Same as B<-NormalizeBlock> but applied on options only.
 =item B<-NormalizeValue>
 
 Same as B<-NormalizeBlock> but applied on values only.
+
+=item B<-AlwaysQuoteOutput>
+
+If set to  true, then values containing whitespace  will always quoted
+when calling C<save_string()> or C<save_file()>.
 
 =back
 
