@@ -34,9 +34,8 @@ use Exporter;
 
 $Config::General::VERSION = "2.65";
 
-use vars  qw(@ISA @EXPORT_OK);
 use base qw(Exporter);
-@EXPORT_OK = qw(ParseConfig SaveConfig SaveConfigString);
+our @EXPORT_OK = qw(ParseConfig SaveConfig SaveConfigString);
 
 use constant _UTF8_BOM => "\x{ef}\x{bb}\x{bf}";
 
