@@ -51,7 +51,37 @@ jobs:
       timeout-minutes: 3
       if: "startsWith(matrix.os, 'windows-')"
 
-  test_in_container:
+  test_in_linux_container:
+    name: Test with ${{ matrix.image }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: ubuntu:noble
+          - image: fedora:40
+    steps:
+    # Note:   checkout@v4   does   not   work   with   older   debians
+    # (e.g.stretch), so do this step *outside* the container
+    - uses: actions/checkout@v4
+    - name: Preinstall, Configure, Build and Test
+      run: |
+        docker run --quiet -v $(pwd):$(pwd) ${{ matrix.image }} sh -c "cd $(pwd); "'
+          set -ex
+          export HARNESS_TIMER=1
+          export HARNESS_OPTIONS=j8
+          if which apt-get 2>/dev/null >/dev/null; then
+              apt-get update -qq && apt-get install -qy --no-install-recommends libperl5.38 libmodule-build-perl make
+          else
+              dnf -y install perl-core
+          fi    
+          perl Makefile.PL
+          make -j4
+          make test
+        '      
+
+
+  test_in_perl_container:
     name: Test with ${{ matrix.image }}
     runs-on: ubuntu-latest
     strategy:
@@ -73,8 +103,6 @@ jobs:
           - image: fedora:40
 
     steps:
-    # Note:   checkout@v4   does   not   work   with   older   debians
-    # (e.g.stretch), so do this step *outside* the container
     - uses: actions/checkout@v4
     - name: Preinstall, Configure, Build and Test
       run: |
