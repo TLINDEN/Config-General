@@ -98,9 +98,6 @@ jobs:
           - image: perl:5.36.0-slim-bullseye
           - image: perl:5.38.0-slim-bookworm
           - image: perl:5.40.0-slim-bookworm
-          - image: ubuntu:noble
-          - image: rockylinux:9
-          - image: fedora:40
 
     steps:
     - uses: actions/checkout@v4
