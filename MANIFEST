@@ -6,6 +6,7 @@ General.pm
 Makefile.PL
 MANIFEST
 META.yml
+META.json
 README
 t/apache-include.conf
 t/apache-include-opt.conf
