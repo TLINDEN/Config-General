@@ -1,5 +1,6 @@
 2.67  - fix github.com/TLINDEN/Config-General/issues/5:
-	fixing tests (add missing file to dist tarball).
+	fixing tests (add missing file to dist tarball) contributed
+	by @paulwalrath.
       - created gitignore file.
 
 2.66  - fix github.com/TLINDEN/Config-General/issues/1:
