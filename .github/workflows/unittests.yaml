@@ -136,3 +136,31 @@ jobs:
           perl Makefile.PL
           make -j4
           make test
+
+  test_dist:
+    name: Test dist file
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        clean: false
+        show-progress: false
+
+    - name: Build dist file
+      run: |
+        perl Makefile.PL
+        make -j4 dist
+
+    - name: unpack dist file
+      run: |
+        tar xfz Config-General-*.tar.gz
+        rm -f Config-General-*.tar.gz
+        cd Config-General-*
+
+    - name: Run tests in dist
+      run: |
+        perl Makefile.PL
+        make -j4 test
+      
