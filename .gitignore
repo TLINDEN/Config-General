@@ -1,0 +1,14 @@
+Config-General-*.tar.gz
+MYMETA.json
+MYMETA.yml
+Makefile
+Makefile.old
+blib/
+pm_to_blib
+t/56.out
+t/cfg.51.out
+t/cfg.52.out
+t/cfg.out
+t/complex.out
+t/test.cfg
+t/test.rc.out

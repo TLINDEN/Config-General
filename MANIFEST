@@ -54,3 +54,4 @@ t/cfg.51
 t/utf8_bom/bar.cfg
 t/utf8_bom/foo.cfg
 t/cfg.58
+t/cfg.59
