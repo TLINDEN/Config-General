@@ -131,7 +131,7 @@ jobs:
         operating_system: freebsd
         version: '${{ matrix.osvers }}'
         run: |
-          sudo pkg update
+          sudo env IGNORE_OSVERSION=yes pkg update -f
           sudo pkg install -y perl5
           perl Makefile.PL
           make -j4
