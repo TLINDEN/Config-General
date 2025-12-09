@@ -22,7 +22,7 @@ WriteMakefile(
                                 },
               'META_MERGE' => {
                                resources => {
-                                             repository => 'https://github.com/TLINDEN/Config-General'
+                                             repository => 'https://codeberg.org/scip/Config-General'
                                             },
                               },
               ($ExtUtils::MakeMaker::VERSION ge '6.31'?

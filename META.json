@@ -42,7 +42,7 @@
    "release_status" : "stable",
    "resources" : {
       "repository" : {
-         "url" : "https://github.com/TLINDEN/Config-General"
+         "url" : "https://codeberg.org/scip/Config-General"
       }
    },
    "version" : "2.67"

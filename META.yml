@@ -23,5 +23,5 @@ requires:
   FileHandle: 0
   IO::File: 0
 resources:
-  repository: https://github.com/TLINDEN/Config-General
+  repository: https://codeberg.org/scip/Config-General
 version: 2.65
