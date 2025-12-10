@@ -1,0 +1,25 @@
+# build release
+
+steps:
+  compile:
+    when:
+      event: [tag,manual]
+    image: perl:5.43.5-slim-bookworm
+    commands:
+      - perl Makefile.PL
+      - make
+      - make dist
+      - mv build/dbtool dbtool-linux-amd64-$CI_COMMIT_TAG
+      - mv build/meson-dist/* .
+
+  release:
+    image: alpine:latest
+    when:
+      event: [tag,manual]
+    environment:
+      DEPLOY_TOKEN:
+        from_secret: DEPLOY_TOKEN
+    commands:
+      - apk update
+      - apk add --no-cache bash httpie jq git
+      - .woodpecker/release.sh Config-General-$CI_COMMIT_TAG.tar.gz
